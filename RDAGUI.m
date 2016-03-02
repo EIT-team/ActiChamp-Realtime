@@ -21,7 +21,9 @@
 %% ***********************************************************************   
 % Main RDA Client function
 function RDAGUI()
-
+    %Supress warnings about deprecated uitabgroup code
+    warning('off','MATLAB:uitabgroup:MigratingFunction')
+    
     % global definitions of controls for easy use in other functions
     global editHost;        % Host Name or IP edit control
     global axTime;          % Time domain axes
@@ -32,19 +34,23 @@ function RDAGUI()
                'CloseRequestFcn',{@RDA_CloseRequestFcn},...
                'Position',[0,0,640,480]);
    
+    %Define tab ground and individual tabs
+    tgroup = uitabgroup('Parent',f);
+    tab_Default = uitab('Parent', tgroup, 'Title', 'Default');
+    tab_DC = uitab('Parent', tgroup, 'Title', 'DC Offset');
     % *** Construct the controls ***
     % controls for connection with host
-    lblHost = uicontrol('Style','text','String','Host:',...
+    lblHost = uicontrol('Parent',tab_Default,'Style','text','String','Host:',...
                         'BackgroundColor',get(f,'Color'),'Position',[25,448,50,16]);
-    editHost = uicontrol('Style','edit','String','127.0.0.1',...
+    editHost = uicontrol('Parent',tab_Default,'Style','edit','String','127.0.0.1',...
                          'Position',[75,450,150,16]);
-    btConnect = uicontrol('Style','pushbutton','String','Connect',...
+    btConnect = uicontrol('Parent',tab_Default,'Style','pushbutton','String','Connect',...
                           'Position',[230,450,100,16],...
                           'Callback',{@btConnect_Callback});
                       
     % construct the axes to display time and frequency domain data
-    axTime = axes('Units','Pixels','Position',[25,240,590,180]); 
-    axFreq = axes('Units','Pixels','Position',[25,25,590,180]); 
+    axTime = axes('Parent',tab_Default,'Units','Pixels','Position',[25,240,590,180]); 
+    axFreq = axes('Parent',tab_Default,'Units','Pixels','Position',[25,25,590,180]); 
 
     % Assign the GUI a name to appear in the window title.
     set(f,'Name','Brain Vision RDA Client for MATLAB')
