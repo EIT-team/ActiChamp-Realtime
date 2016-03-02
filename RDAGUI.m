@@ -25,12 +25,11 @@ function RDAGUI()
     warning('off','MATLAB:uitabgroup:MigratingFunction')
     
     % global definitions of controls for easy use in other functions
-    global editHost;        % Host Name or IP edit control
     global axTime;          % Time domain axes
     global axFreq;          % Frequency domain axes
     global axDC;            % DC offset axes
     global tgroup;          % Tabs
-    global editRange;       % DC plot range
+    global userSettings;    % User defined options
     
     % Create and hide the GUI figure as it is being constructed.
     f = figure('Visible','off',...
@@ -47,7 +46,7 @@ function RDAGUI()
     % controls for connection with host
     lblHost = uicontrol('Parent',tab_Default,'Style','text','String','Host:',...
                         'BackgroundColor',get(f,'Color'),'Position',[25,428,50,16]);
-    editHost = uicontrol('Parent',tab_Default,'Style','edit','String','128.40.45.70',...
+    userSettings.editHost = uicontrol('Parent',tab_Default,'Style','edit','String','128.40.45.70',...
                          'Position',[75,430,150,16]);
     btConnect = uicontrol('Parent',tab_Default,'Style','pushbutton','String','Connect',...
                           'Position',[230,430,100,16],...
@@ -60,7 +59,7 @@ function RDAGUI()
     % *** DC Offset Tab ***
     lblRange = uicontrol('Parent',tab_DC,'Style','text','String','Voltage Range (mV):',...
                         'BackgroundColor',get(f,'Color'),'Position',[25,25,100,16]);
-    editRange = uicontrol('Parent',tab_DC,'Style','edit','String','10',...
+    userSettings.editRange = uicontrol('Parent',tab_DC,'Style','edit','String','10',...
                          'Position',[125,25,150,16]);
                      
     axDC = axes('Parent',tab_DC,'Units','Pixels','Position',[25,240,590,180]);
@@ -118,9 +117,9 @@ function OpenConnection()
     % global definitions
     global readTimer;       % Timer object for reading data from tcpip socket 
     global con;             % TCPIP connection
-    global editHost;        % Host Name or IP edit control
+    global userSettings;        % Host Name or IP edit control
 
-    recorderip = get(editHost, 'String');
+    recorderip = get(userSettings.editHost, 'String');
 
     % Establish connection to BrainVision Recorder Software 32Bit RDA-Port
     % (use 51234 to connect with 16Bit Port)
@@ -171,13 +170,10 @@ function RDATimerCallback(hObject, eventdata)
     global readTimer;       % Timer object
     global axTime;          % Time domain axes control
     global axFreq;          % Frequency domain axes control
-    global axDC;            % DC offset axes control
     global hTime;           % Time domain graph handle
     global hFreq;           % Frequency domain graph handle
-    global hDC;             % DC offset graph handle
     global data1s;          % EEG data of the last recorded second
     global tgroup;          % tabs
-    global editRange;
     % --- Main reading loop ---
     header_size = 24;
     try
@@ -220,11 +216,11 @@ function RDATimerCallback(hObject, eventdata)
                     lastBlock = datahdr.block;
 
                     % print marker info to MATLAB console
-                    if datahdr.markerCount > 0
-                        for m = 1:datahdr.markerCount
-                            disp(markers(m));
-                        end    
-                    end
+%                     if datahdr.markerCount > 0
+%                         for m = 1:datahdr.markerCount
+%                             disp(markers(m));
+%                         end    
+%                     end
 
                     % Process EEG data, 
                     % in this case extract last recorded second,                     
@@ -241,35 +237,17 @@ function RDATimerCallback(hObject, eventdata)
                     
                     data1s = [data1s EEGData];
                     dims = size(data1s);
-                    if dims(2) > 100000 / props.samplingInterval
-                        data1s = data1s(:, dims(2) - 100000 / props.samplingInterval : dims(2));
+                    if dims(2) > 1000000 / props.samplingInterval %10000000 us = 1s
+                        data1s = data1s(:, dims(2) - 1000000 / props.samplingInterval : dims(2));
                     end
                    
                     current_tab = get(tgroup,'SelectedIndex');
                     switch current_tab
-                        case 1
-                            % plot first channel using graph handle for better
-                            % performance
-                            set(axTime,'YLim',[-200, 200]);
-                            set(hTime,'YData', data1s(1,:));
-                            
-                            % perform fourier transform of first channel
-                            freqEEGData = abs(fft(data1s(1,:)));
-                            
-                            % plot fourier transform of first channel using graph
-                            % handle for better performance
-                            set(axFreq,'YLim',[0, 800]);
-                            set(hFreq, 'YData', freqEEGData(1:int32(length(freqEEGData)/2)));
+                        case 1 
+                           updateTimeFreqPlot(data1s);
                         
                         case 2
-                            %Calculate DC offset
-                            DC_offset = 1e-3*mean(data1s,2);
-                            
-                            hDC = bar(axDC, 1:32, DC_offset);
-                            yrange = str2num(get(editRange,'String'));
-                            ylim([-yrange yrange]);
-                            set(axDC,'XLabel',xlabel('Channel'))
-                            set(axDC,'Ylabel',ylabel('Voltage (mV)'))
+                            updateDCPlot(data1s);
                     end
                 case 3       % Stop message   
                     disp('Stop');
@@ -398,4 +376,40 @@ function channelNames = SplitChannelNames(allChannelNames)
             name = [];
         end
     end
+    
+%% ****************************************************************************
+% Update DC offset plot
+    function updateDCPlot(data)
+        global axDC;
+        global hDC;
+        global userSettings;
+        
+        %Calculate DC offset
+        DC_offset = 1e-3*mean(data,2);
+        bar(axDC, 1:32, DC_offset);
+        yrange = str2num(get(userSettings.editRange,'String'));
+        ylim([-yrange yrange]);
+        set(axDC,'XLabel',xlabel('Channel'))
+        set(axDC,'Ylabel',ylabel('Voltage (mV)'))
+   
 
+%% ***************************************************************************
+% Update time and FFT plot
+        function updateTimeFreqPlot(data)
+            global axTime;
+            global axFreq;
+            global hTime;
+            global hFreq;
+            
+            % plot first channel using graph handle for better
+            % performance
+            set(axTime,'YLim',[-200, 200]);
+            set(hTime,'YData', data(1,:));
+            
+            % perform fourier transform of first channel
+            freqEEGData = abs(fft(data(1,:)));
+            
+            % plot fourier transform of first channel using graph
+            % handle for better performance
+            set(axFreq,'YLim',[0, 80000]);
+            set(hFreq, 'YData', freqEEGData(1:int32(length(freqEEGData)/2)));
