@@ -29,7 +29,8 @@ function RDAGUI()
     global axTime;          % Time domain axes
     global axFreq;          % Frequency domain axes
     global axDC;            % DC offset axes
-    global tgroup;
+    global tgroup;          % Tabs
+    global editRange;       % DC plot range
     
     % Create and hide the GUI figure as it is being constructed.
     f = figure('Visible','off',...
@@ -41,6 +42,7 @@ function RDAGUI()
     tab_Default = uitab('Parent', tgroup, 'Title', 'Default');
     tab_DC = uitab('Parent', tgroup, 'Title', 'DC Offset');
     
+    % *** Default tab
     % *** Construct the controls ***
     % controls for connection with host
     lblHost = uicontrol('Parent',tab_Default,'Style','text','String','Host:',...
@@ -54,7 +56,15 @@ function RDAGUI()
     % construct the axes to display time and frequency domain data
     axTime = axes('Parent',tab_Default,'Units','Pixels','Position',[25,240,590,180]); 
     axFreq = axes('Parent',tab_Default,'Units','Pixels','Position',[25,25,590,180]); 
+   
+    % *** DC Offset Tab ***
+    lblRange = uicontrol('Parent',tab_DC,'Style','text','String','Voltage Range (mV):',...
+                        'BackgroundColor',get(f,'Color'),'Position',[25,25,100,16]);
+    editRange = uicontrol('Parent',tab_DC,'Style','edit','String','10',...
+                         'Position',[125,25,150,16]);
+                     
     axDC = axes('Parent',tab_DC,'Units','Pixels','Position',[25,240,590,180]);
+    
     
     % Assign the GUI a name to appear in the window title.
     set(f,'Name','Brain Vision RDA Client for MATLAB')
@@ -167,6 +177,7 @@ function RDATimerCallback(hObject, eventdata)
     global hDC;             % DC offset graph handle
     global data1s;          % EEG data of the last recorded second
     global tgroup;          % tabs
+    global editRange;
     % --- Main reading loop ---
     header_size = 24;
     try
@@ -195,6 +206,7 @@ function RDATimerCallback(hObject, eventdata)
                     freqEEGData = abs(fft(data1s(1,:)));
                     hFreq = plot(axFreq, freqEEGData(1:int32(length(freqEEGData)/2)));
                     
+                    
                     DC_offset = zeros(props.channelCount);
                     
                 case 4       % 32Bit Data block
@@ -220,6 +232,7 @@ function RDATimerCallback(hObject, eventdata)
                     EEGData = reshape(data, props.channelCount, length(data) / props.channelCount);
                     
                     for k = 1:props.channelCount
+                      
                          
                          EEGData (k,:) = EEGData (k,:) * props.resolutions (k);
                          
@@ -228,8 +241,8 @@ function RDATimerCallback(hObject, eventdata)
                     
                     data1s = [data1s EEGData];
                     dims = size(data1s);
-                    if dims(2) > 1000000 / props.samplingInterval
-                        data1s = data1s(:, dims(2) - 1000000 / props.samplingInterval : dims(2));
+                    if dims(2) > 100000 / props.samplingInterval
+                        data1s = data1s(:, dims(2) - 100000 / props.samplingInterval : dims(2));
                     end
                    
                     current_tab = get(tgroup,'SelectedIndex');
@@ -250,9 +263,13 @@ function RDATimerCallback(hObject, eventdata)
                         
                         case 2
                             %Calculate DC offset
-                            DC_offset = mean(data1s,2);
-                            bar(axDC, 1:32, DC_offset);
-                            ylim([-5 5]);
+                            DC_offset = 1e-3*mean(data1s,2);
+                            
+                            hDC = bar(axDC, 1:32, DC_offset);
+                            yrange = str2num(get(editRange,'String'));
+                            ylim([-yrange yrange]);
+                            set(axDC,'XLabel',xlabel('Channel'))
+                            set(axDC,'Ylabel',ylabel('Voltage (mV)'))
                     end
                 case 3       % Stop message   
                     disp('Stop');
