@@ -28,30 +28,34 @@ function RDAGUI()
     global editHost;        % Host Name or IP edit control
     global axTime;          % Time domain axes
     global axFreq;          % Frequency domain axes
-
+    global axDC;            % DC offset axes
+    global tgroup;
+    
     % Create and hide the GUI figure as it is being constructed.
     f = figure('Visible','off',...
                'CloseRequestFcn',{@RDA_CloseRequestFcn},...
                'Position',[0,0,640,480]);
    
     %Define tab ground and individual tabs
-    tgroup = uitabgroup('Parent',f);
+   tgroup = uitabgroup('Parent',f);
     tab_Default = uitab('Parent', tgroup, 'Title', 'Default');
     tab_DC = uitab('Parent', tgroup, 'Title', 'DC Offset');
+    
     % *** Construct the controls ***
     % controls for connection with host
     lblHost = uicontrol('Parent',tab_Default,'Style','text','String','Host:',...
-                        'BackgroundColor',get(f,'Color'),'Position',[25,448,50,16]);
-    editHost = uicontrol('Parent',tab_Default,'Style','edit','String','127.0.0.1',...
-                         'Position',[75,450,150,16]);
+                        'BackgroundColor',get(f,'Color'),'Position',[25,428,50,16]);
+    editHost = uicontrol('Parent',tab_Default,'Style','edit','String','128.40.45.70',...
+                         'Position',[75,430,150,16]);
     btConnect = uicontrol('Parent',tab_Default,'Style','pushbutton','String','Connect',...
-                          'Position',[230,450,100,16],...
+                          'Position',[230,430,100,16],...
                           'Callback',{@btConnect_Callback});
                       
     % construct the axes to display time and frequency domain data
     axTime = axes('Parent',tab_Default,'Units','Pixels','Position',[25,240,590,180]); 
     axFreq = axes('Parent',tab_Default,'Units','Pixels','Position',[25,25,590,180]); 
-
+    axDC = axes('Parent',tab_DC,'Units','Pixels','Position',[25,240,590,180]);
+    
     % Assign the GUI a name to appear in the window title.
     set(f,'Name','Brain Vision RDA Client for MATLAB')
     % Move the GUI to the center of the screen.
@@ -157,10 +161,12 @@ function RDATimerCallback(hObject, eventdata)
     global readTimer;       % Timer object
     global axTime;          % Time domain axes control
     global axFreq;          % Frequency domain axes control
+    global axDC;            % DC offset axes control
     global hTime;           % Time domain graph handle
     global hFreq;           % Frequency domain graph handle
+    global hDC;             % DC offset graph handle
     global data1s;          % EEG data of the last recorded second
-
+    global tgroup;          % tabs
     % --- Main reading loop ---
     header_size = 24;
     try
@@ -188,7 +194,9 @@ function RDATimerCallback(hObject, eventdata)
                     hTime = plot(axTime, data1s(1,:));
                     freqEEGData = abs(fft(data1s(1,:)));
                     hFreq = plot(axFreq, freqEEGData(1:int32(length(freqEEGData)/2)));
-
+                    
+                    DC_offset = zeros(props.channelCount);
+                    
                 case 4       % 32Bit Data block
                     % Read data and markers from message
                     [datahdr, data, markers] = ReadDataMessage(con, hdr);
@@ -223,20 +231,29 @@ function RDATimerCallback(hObject, eventdata)
                     if dims(2) > 1000000 / props.samplingInterval
                         data1s = data1s(:, dims(2) - 1000000 / props.samplingInterval : dims(2));
                     end
-
-                    % plot first channel using graph handle for better
-                    % performance
-                    set(axTime,'YLim',[-200, 200]);
-                    set(hTime,'YData', data1s(1,:));
-                    
-                    % perform fourier transform of first channel
-                    freqEEGData = abs(fft(data1s(1,:)));
-                    
-                    % plot fourier transform of first channel using graph
-                    % handle for better performance
-                    set(axFreq,'YLim',[0, 800]);
-                    set(hFreq, 'YData', freqEEGData(1:int32(length(freqEEGData)/2)));
-
+                   
+                    current_tab = get(tgroup,'SelectedIndex');
+                    switch current_tab
+                        case 1
+                            % plot first channel using graph handle for better
+                            % performance
+                            set(axTime,'YLim',[-200, 200]);
+                            set(hTime,'YData', data1s(1,:));
+                            
+                            % perform fourier transform of first channel
+                            freqEEGData = abs(fft(data1s(1,:)));
+                            
+                            % plot fourier transform of first channel using graph
+                            % handle for better performance
+                            set(axFreq,'YLim',[0, 800]);
+                            set(hFreq, 'YData', freqEEGData(1:int32(length(freqEEGData)/2)));
+                        
+                        case 2
+                            %Calculate DC offset
+                            DC_offset = mean(data1s,2);
+                            bar(axDC, 1:32, DC_offset);
+                            ylim([-5 5]);
+                    end
                 case 3       % Stop message   
                     disp('Stop');
                     data = pnet(con, 'read', hdr.size - header_size);
