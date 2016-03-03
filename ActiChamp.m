@@ -9,9 +9,14 @@ classdef ActiChamp < handle
         hdr                 %Message header
         props               %EEG properties (sampling rate etc)
         datahdr             %Data block headers
+        EEGData             %Data in 'samples x channels' format
         data                %Block of data
-        markers             %Markers/triggers
         data1s
+        markers             %Markers/triggers
+        msec_to_read = 100   %How many mseconds of data to read
+        msec_read            %How many mseconds read so far
+        lastBlock
+        print_markers = 0   %Set to 1 to print marker/trigger info to console
     end
     
     properties (SetAccess = private)
@@ -98,7 +103,7 @@ classdef ActiChamp < handle
             
             % Read data in float format
             obj.data = swapbytes(pnet(obj.con,'read', obj.props.channelCount * obj.datahdr.points, 'single', 'network'));
-       
+            obj.EEGData = reshape(obj.data, obj.props.channelCount, length(obj.data) / obj.props.channelCount);
             % Define markers struct and read markers
             obj.markers = struct('size',[],'position',[],'points',[],'channel',[],'type',[],'description',[]);
             for m = 1:obj.datahdr.markerCount
@@ -131,11 +136,18 @@ classdef ActiChamp < handle
         end
         
         function Go(obj)
-            obj.Connect()
-            while ~obj.finish
+            %Reset seconds read
+            packet_read = 0;
+            %Open TCP connection
+            if isempty(obj.con)
+                obj.Connect()
+            end
+            
+            while ~packet_read % Main loop
                 try
                     % check for existing data in socket buffer
                     tryheader = pnet(obj.con, 'read', obj.header_size, 'byte', 'network', 'view', 'noblock');
+                    
                     while ~isempty(tryheader)
                         
                         % Read header of RDA message
@@ -149,7 +161,7 @@ classdef ActiChamp < handle
                                 disp(obj.props);
                                 
                                 % Reset block counter to check overflows
-                                lastBlock = -1;
+                                obj.lastBlock = -1;
                                 
                                 % set data buffer to empty
                                 obj.data1s = [];
@@ -159,18 +171,22 @@ classdef ActiChamp < handle
                                 obj.ReadDataMessage();
                                 
                                 % check tcpip buffer overflow
-                                if lastBlock ~= -1 && obj.datahdr.block > lastBlock + 1
-                                    disp(['******* Overflow with ' int2str(datahdr.block - lastBlock) ' blocks ******']);
+                                if obj.lastBlock ~= -1 && obj.datahdr.block > obj.lastBlock + 1
+                                    disp(['******* Overflow with ' int2str(datahdr.block - obj.lastBlock) ' blocks ******']);
                                 end
-                                lastBlock = obj.datahdr.block;
+                                obj.lastBlock = obj.datahdr.block;
                                 
                                 % print marker info to MATLAB console
-                                if obj.datahdr.markerCount > 0
+                                if obj.datahdr.markerCount > 0 && obj.print_markers
                                     for m = 1:obj.datahdr.markerCount
                                         disp(obj.markers(m));
                                     end
+                                    
+                                    %Update how many seconds have been
+                                    %recorded
                                 end
-                                
+                                packet_read = 1;
+                           
                                 % Process EEG data,
                                 % in this case extract last recorded second,
                                 %                         EEGData = reshape(data, props.channelCount, length(data) / props.channelCount);
@@ -185,7 +201,7 @@ classdef ActiChamp < handle
                                 %                             % set data buffer to empty for next full second
                                 %                             data1s = [];
                         %end
-                        
+
                         case 3       % Stop message
                             disp('Stop');
                             obj.data = pnet(obj.con, 'read', obj.hdr.size - obj.header_size);
@@ -200,15 +216,21 @@ classdef ActiChamp < handle
                     er = lasterror;
                     disp(er.message);
             end
-        end % Main loop
+        end 
         
-        % Close all open socket connections
-        pnet('closeall');
+
         
-        % Display a message
-        disp('connection closed');
+        end
         
-    end
+        function Close(obj)
+            % Close all open socket connections
+            pnet('closeall');
+            obj.con = [];
+            
+            % Display a message
+            disp('connection closed');
+            
+        end
     
 end
 end

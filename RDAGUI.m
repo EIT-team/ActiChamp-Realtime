@@ -35,6 +35,8 @@ function RDAGUI()
     f = figure('Visible','off',...
                'CloseRequestFcn',{@RDA_CloseRequestFcn},...
                'Position',[0,0,640,480]);
+           
+   setappdata(f,'Test','Hello')
    
     %Define tab ground and individual tabs
    tgroup = uitabgroup('Parent',f);
@@ -50,7 +52,7 @@ function RDAGUI()
                          'Position',[75,430,150,16]);
     btConnect = uicontrol('Parent',tab_Default,'Style','pushbutton','String','Connect',...
                           'Position',[230,430,100,16],...
-                          'Callback',{@btConnect_Callback});
+                          'Callback',{@btConnect_Callback,f});
                       
     % construct the axes to display time and frequency domain data
     axTime = axes('Parent',tab_Default,'Units','Pixels','Position',[25,240,590,180]); 
@@ -97,13 +99,13 @@ function RDA_CloseRequestFcn(hObject, eventdata)
 % Connection handling functions 
 
 % --- Pushbutton handler: executes on button press in btConnect.
-function btConnect_Callback(hObject, eventdata)
+function btConnect_Callback(hObject, eventdata,f)
     % hObject    handle to btConnect
     % eventdata  reserved - to be defined in a future version of MATLAB
 
     text = get(hObject, 'String');
     if strcmp(text, 'Connect')
-        OpenConnection();
+        OpenConnection(f);
         set(hObject,'String','Disconnect');
     else
         CloseConnection();
@@ -112,7 +114,7 @@ function btConnect_Callback(hObject, eventdata)
 
 
 % Connection opening
-function OpenConnection()
+function OpenConnection(f)
 
     % global definitions
     global readTimer;       % Timer object for reading data from tcpip socket 
@@ -132,7 +134,7 @@ function OpenConnection()
     end
 
     % Define and start timer for reading from socket
-    readTimer = timer('TimerFcn', @RDATimerCallback, 'Period', 0.01, 'ExecutionMode', 'fixedSpacing');
+    readTimer = timer('TimerFcn', {@RDATimerCallback,f}, 'Period', 0.01, 'ExecutionMode', 'fixedSpacing');
     start(readTimer);
 
 
@@ -159,7 +161,7 @@ function CloseConnection()
 % after a connection is established, this is the main data processing 
 % function.
 %
-function RDATimerCallback(hObject, eventdata)
+function RDATimerCallback(hObject, eventdata,f)
     % hObject    handle to timer object
     % eventdata  reserved - to be defined in a future version of MATLAB
 
@@ -234,7 +236,7 @@ function RDATimerCallback(hObject, eventdata)
                          
                     end
                          
-                    
+                    set(hObject,'UserData',data1s);
                     data1s = [data1s EEGData];
                     dims = size(data1s);
                     if dims(2) > 1000000 / props.samplingInterval %10000000 us = 1s
