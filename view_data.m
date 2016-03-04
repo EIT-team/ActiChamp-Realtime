@@ -6,47 +6,67 @@ function handles = view_data(obj)
     % set(handles,'XDataMode','manual')
 
     addlistener (obj, 'data_buf', 'PostSet', @(o,e) onNewData(handles,e.AffectedObject));
-    addlistener (handles.tabDC.Range, 'String', 'PostSet', @(o,e) onNewDataCRange(handles,e.AffectedObject));
-    
+    addlistener (handles.Settings.Range, 'String', 'PostSet', @(o,e) onNewDataRange(handles,e.AffectedObject));
+    addlistener (obj, 'channelNames', 'PostSet', @(o,e) onPropChange(handles,e.AffectedObject));
 end
 
 function handles = initGUI()
 
-    hFig = figure('Visible','off','Position',[0,0,640,480]);
+    hFig = figure('Visible','off','Position',[0,0,800,700],'ToolBar','none');
            
+    
+   %Define tab grounp
    
-   %Define tab ground and individual tabs
-    hTabGroup = uitabgroup('Parent',hFig);
+    hTabGroupPlot = uitabgroup('Parent',hFig, 'Position',[0.2 0.05 0.75 0.9]);
+    
+    %Settings panel
+    hSettingsPanel = uipanel('Parent',hFig, 'Position',[0.02 0.05 0.15 0.9]);
+    
+    lblHost = uicontrol(    'Parent',hSettingsPanel,'Style','text','String','Host IP:',...
+                            'BackgroundColor',get(hFig,'Color'),'Position',[35, 590, 50, 20]);
+                        
+    editHostIP = uicontrol( 'Parent',hSettingsPanel,'Style','edit','String','128.40.45.70',...
+                            'Position',[5,570,100,16]);
+                        
+    btConnect = uicontrol(  'Parent',hSettingsPanel,'Style','pushbutton','String','Connect',...
+                            'Position',[5,550,100,16]);
+                        
+    lblRange = uicontrol(   'Parent',hSettingsPanel,'Style','text','String','Voltage Range (mV):',...
+                            'Position',[0,500,115,16]);
+                        
+    editRange = uicontrol(  'Parent',hSettingsPanel,'Style','edit','String','10',...
+                            'Position',[5,480,100,16]);
+                        
+    chanSelect = uicontrol ('Parent',hSettingsPanel,'Style','listbox','Position',[5,300,100,160]);
+    
+    handles_Settings = struct(  'HostIP',editHostIP, 'btConnect',btConnect, 'Range',editRange,...
+                                'lstChannels',chanSelect);
     
     % *** Default tab
-    hTabPlotEEG = uitab('Parent', hTabGroup, 'Title', 'Default');
+    hTabPlotEEG = uitab('Parent', hTabGroupPlot, 'Title', 'Default');
 
-    lblHost = uicontrol('Parent',hTabPlotEEG,'Style','text','String','Host:',...
-                        'BackgroundColor',get(hFig,'Color'),'Position',[25,428,50,16]);
-    editHostIP = uicontrol('Parent',hTabPlotEEG,'Style','edit','String','128.40.45.70',...
-                         'Position',[75,430,150,16]);
-    btConnect = uicontrol('Parent',hTabPlotEEG,'Style','pushbutton','String','Connect',...
-                          'Position',[230,430,100,16]);
+
                       
     % construct the axes to display time and frequency domain data
     axTime = axes('Parent',hTabPlotEEG,'Units','Pixels','Position',[25,240,590,180]); 
     axFreq = axes('Parent',hTabPlotEEG,'Units','Pixels','Position',[25,25,590,180]); 
    
-    handles_TabPlotEEG = struct('tab',hTabPlotEEG, 'HostIP',editHostIP, 'ConnectBtn',btConnect, ...
-                            'axTime',axTime, 'axFreq',axFreq);
+    hTime = plot(axTime,1:10);
+    hFreq = plot(axFreq,1:10);
+    
+    handles_TabPlotEEG = struct('tab',hTabPlotEEG, 'axTime',axTime, 'axFreq',axFreq, 'plotTime',hTime, 'plotFreq',hFreq);
     
     % *** DC Offset Tab ***
-    hTabDC = uitab('Parent', hTabGroup, 'Title', 'DC Offset');
+    hTabDC = uitab('Parent', hTabGroupPlot, 'Title', 'DC Offset');
 
-    lblRange = uicontrol('Parent',hTabDC,'Style','text','String','Voltage Range (mV):',...
-                        'BackgroundColor',get(hFig,'Color'),'Position',[25,25,100,16]);
-    editRange = uicontrol('Parent',hTabDC,'Style','edit','String','10',...
-                         'Position',[125,25,150,16]);
+
                      
-    axDC = axes('Parent',hTabDC,'Units','Pixels','Position',[25,240,590,180]);
-    hBar = bar(axDC,1:32,1:32);
+    axDC = axes('Parent',hTabDC,'Units','Pixels','Position',[75,75,500,500]);
+    hBar = bar(axDC,1:16,1:16);
+    xlabel('Channel');
+    ylabel( 'DC Offset (mV)');
 
-    handles_tabDC = struct('tab',hTabDC, 'Range',editRange', 'ax',axDC, 'bar',hBar);
+    handles_tabDC = struct('tab',hTabDC, 'ax',axDC, 'bar',hBar);
     
     % Assign the GUI a name to appear in the window title.
     set(hFig,'Name','Brain Vision RDA Client for MATLAB')
@@ -55,7 +75,7 @@ function handles = initGUI()
     % Make the GUI visible.
     set(hFig,'Visible','on'); 
 
-    handles = struct('fig',hFig, 'tabGroup',hTabGroup, 'tabDC',handles_tabDC, 'tabPlotEEG',handles_TabPlotEEG);
+    handles = struct('fig',hFig, 'tabGroup',hTabGroupPlot, 'Settings',handles_Settings, 'tabDC',handles_tabDC, 'tabPlotEEG',handles_TabPlotEEG);
 
     
 end
@@ -65,9 +85,18 @@ function onNewData(handles,obj)
     %Only update graph for active tab
     active_tab = get(handles.tabGroup,'SelectedIndex');
     switch active_tab
+        case 1
+            updateEEGPlot(handles,obj)
+            
         case 2
             updateDCOffset(handles,obj)
     end
+end
+
+function updateEEGPlot(handles,obj)
+
+set(handles.tabPlotEEG.plotTime,'YData',obj.data_buf(1,:))
+
 end
 
 function updateDCOffset(handles,obj)
@@ -76,27 +105,13 @@ function updateDCOffset(handles,obj)
     
 end
 
-function onNewDataCRange(handles,obj)
-range = 1e3*str2num(get(handles.tabDC.Range,'String'));
+function onNewDataRange(handles,obj)
+range = 1e3*str2num(get(handles.Settings.Range,'String'));
 set(handles.tabDC.ax,'YLim',[-range range]);
 end
-    
-%% ***********************************************************************   
-% --- Closing reques handler: executes when user attempts to close formRDA.
-function RDA_CloseRequestFcn(hObject, eventdata)
-    % hObject    handle to figure
-    % eventdata  reserved - to be defined in a future version of MATLAB
 
-    selection = questdlg(['Close MATLAB RDA Client?'],...
-                         ['Closing...'],...
-                         'Yes','No','Yes');
-    if strcmp(selection,'No')
-        return;
-    end
-    A.finish = 1;
-    % Close open connections to recorder if exist
-    CloseConnection();
-    
-    % Delete and close the window
-    delete(hObject);
+function onPropChange(handles,obj)
+disp('Prop Change')
+% Populate list box with channel names
+set(handles.Settings.lstChannels,'String',obj.props.channelNames);
 end

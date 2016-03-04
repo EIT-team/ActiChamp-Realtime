@@ -7,19 +7,10 @@ Acti = ActiChamp;
 h = view_data(Acti);
 
 set(h.fig,'CloseRequestFcn',{@onWindowClose,Acti});
-set(h.tabPlotEEG.ConnectBtn,'Callback',{@onConnect,Acti});
-% A.Go()
+set(h.Settings.btConnect,'Callback',{@onConnect,Acti});
+set(h.Settings.lstChannels,'Callback',{@onChannelSelect,h,Acti});
 
 end
-%%
-% A.GetDataBlock();
-% %%
-% while (1)
-%     A.GetDataBlock()
-% drawnow
-% pause(0.01)
-% end
-
 
 function onWindowClose(self,eventdata,obj)
 
@@ -40,15 +31,19 @@ function onWindowClose(self,eventdata,obj)
 end
 
 function onConnect(self,eventdata,obj)
-
+    
     text = get(self, 'String');
     if strcmp(text, 'Connect')
-            set(self,'String','Disconnect');
-            obj.Go()
-
+        set(self,'String','Disconnect');
+        obj.Go()
     else
         obj.finish = 1;
-        set(self,'String','Connect');    
+        set(self,'String','Connect');
     end
+
+end
+
+function onChannelSelect(self,eventdata,h,obj)
+set(h.tabPlotEEG.plotTime,'YData',obj.data_buf(1,:))
 
 end

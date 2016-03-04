@@ -2,6 +2,7 @@ classdef ActiChamp < handle
     
     properties (SetObservable = true)
         data_buf = []       %Data buffer
+        channelNames             %EEG properties (sampling rate etc)
 
     end
     
@@ -12,7 +13,6 @@ classdef ActiChamp < handle
         header_size = 24    %Data packet header size
         finish = 0;         %Data collection completed
         hdr                 %Message header
-        props               %EEG properties (sampling rate etc)
         datahdr             %Data block headers
         EEG_packet          %Single packet of EEG data in 'samples x channels' format
         data                %Block of data
@@ -21,6 +21,8 @@ classdef ActiChamp < handle
         msec_read           %How many mseconds read so far
         lastBlock           %Index of most recently read data block
         print_markers = 0   %Set to 1 to print marker/trigger info to console
+        props             %EEG properties (sampling rate etc)
+
     end
     
     properties (SetAccess = private)
@@ -30,7 +32,9 @@ classdef ActiChamp < handle
     properties (Dependent = true)
     end
     
-    
+    events
+        UpdatedProps
+    end
     
     methods
         
@@ -73,6 +77,7 @@ classdef ActiChamp < handle
             obj.props.resolutions = swapbytes(pnet(obj.con,'read', obj.props.channelCount, 'double', 'network'));
             allChannelNames = pnet(obj.con,'read', obj.hdr.size - 36 - obj.props.channelCount * 8);
             obj.props.channelNames = obj.SplitChannelNames(allChannelNames);
+            obj.channelNames = obj.props.channelNames;
         end
         
         function channelNames = SplitChannelNames(obj,allChannelNames)
