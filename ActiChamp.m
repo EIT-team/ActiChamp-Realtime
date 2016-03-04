@@ -1,18 +1,22 @@
 classdef ActiChamp < handle
     
     properties (SetObservable = true)
+        data_buf = []       %Data buffer
+
+    end
+    
+    properties 
         ip = '128.40.45.70'
         con                 %TCP connection
         port = 51244        %Port for 32-bit data on ActiChamp
         header_size = 24    %Data packet header size
-        finish = false;     %Data collection completed
+        finish = 0;         %Data collection completed
         hdr                 %Message header
         props               %EEG properties (sampling rate etc)
         datahdr             %Data block headers
         EEG_packet          %Single packet of EEG data in 'samples x channels' format
         data                %Block of data
-        len_data_buf = 1 %How much data to buffer (in seconds)
-        data_buf = []       %Data buffer
+        len_data_buf = 1    %How much data to buffer (in seconds)
         markers             %Markers/triggers
         msec_read           %How many mseconds read so far
         lastBlock           %Index of most recently read data block
@@ -136,6 +140,10 @@ classdef ActiChamp < handle
             
         end
         
+        function GetProperties(obj)
+           
+        end
+        
         function GetDataBlock(obj)
             % Read data from EEG until a data packet is received
             % 
@@ -215,6 +223,7 @@ classdef ActiChamp < handle
         end
         
         function Go(obj)
+            obj.finish = 0;
            while ~obj.finish
             % Get Block of data and append to data buffer
             obj.GetDataBlock()
@@ -222,11 +231,14 @@ classdef ActiChamp < handle
             
             % If data buffer is longer than len_data_buf, remove oldest
             % data points
-            dims = size(data_buf);
+            dims = size(obj.data_buf);
             if dims(2) > 1e6 * obj.len_data_buf / obj.props.samplingInterval
                 obj.data_buf = obj.data_buf(:, dims(2) - 1e6 * obj.len_data_buf / obj.props.samplingInterval : dims(2));
             end
            end
+           disp('Finished')
+           
+           obj.Close()
         end
         
         function Close(obj)
