@@ -3,23 +3,24 @@ classdef ActiChamp < handle
     properties (SetObservable = true)
         ip = '128.40.45.70'
         con                 %TCP connection
-        port = 51244       %Port for 32-bit data on ActiChamp
+        port = 51244        %Port for 32-bit data on ActiChamp
         header_size = 24    %Data packet header size
         finish = false;     %Data collection completed
         hdr                 %Message header
         props               %EEG properties (sampling rate etc)
         datahdr             %Data block headers
-        EEGData             %Data in 'samples x channels' format
+        EEG_packet          %Single packet of EEG data in 'samples x channels' format
         data                %Block of data
-        data1s
+        len_data_buf = 1 %How much data to buffer (in seconds)
+        data_buf = []       %Data buffer
         markers             %Markers/triggers
-        msec_to_read = 100   %How many mseconds of data to read
-        msec_read            %How many mseconds read so far
-        lastBlock
+        msec_read           %How many mseconds read so far
+        lastBlock           %Index of most recently read data block
         print_markers = 0   %Set to 1 to print marker/trigger info to console
     end
     
     properties (SetAccess = private)
+        
     end
     
     properties (Dependent = true)
@@ -103,7 +104,7 @@ classdef ActiChamp < handle
             
             % Read data in float format
             obj.data = swapbytes(pnet(obj.con,'read', obj.props.channelCount * obj.datahdr.points, 'single', 'network'));
-            obj.EEGData = reshape(obj.data, obj.props.channelCount, length(obj.data) / obj.props.channelCount);
+            obj.EEG_packet = reshape(obj.data, obj.props.channelCount, length(obj.data) / obj.props.channelCount);
             % Define markers struct and read markers
             obj.markers = struct('size',[],'position',[],'points',[],'channel',[],'type',[],'description',[]);
             for m = 1:obj.datahdr.markerCount
@@ -135,8 +136,12 @@ classdef ActiChamp < handle
             
         end
         
-        function Go(obj)
-            %Reset seconds read
+        function GetDataBlock(obj)
+            % Read data from EEG until a data packet is received
+            % 
+            %
+            
+            
             packet_read = 0;
             %Open TCP connection
             if isempty(obj.con)
@@ -164,7 +169,7 @@ classdef ActiChamp < handle
                                 obj.lastBlock = -1;
                                 
                                 % set data buffer to empty
-                                obj.data1s = [];
+                                obj.data_buf = [];
                                 
                             case 4       % 32Bit Data block
                                 % Read data and markers from message
@@ -187,20 +192,7 @@ classdef ActiChamp < handle
                                 end
                                 packet_read = 1;
                            
-                                % Process EEG data,
-                                % in this case extract last recorded second,
-                                %                         EEGData = reshape(data, props.channelCount, length(data) / props.channelCount);
-                                %                         data1s = [data1s EEGData];
-                                %                         dims = size(data1s);
-                                %                         if dims(2) > 1000000 / props.samplingInterval
-                                %                             data1s = data1s(:, dims(2) - 1000000 / props.samplingInterval : dims(2));
-                                %                             %avg = mean(mean(data1s.*data1s));
-                                %                             %disp(['Average power: ' num2str(avg)]);
-                                %                             bar(mean(data1s,2))
-                                %                             drawnow
-                                %                             % set data buffer to empty for next full second
-                                %                             data1s = [];
-                        %end
+                              
 
                         case 3       % Stop message
                             disp('Stop');
@@ -222,6 +214,21 @@ classdef ActiChamp < handle
         
         end
         
+        function Go(obj)
+           while ~obj.finish
+            % Get Block of data and append to data buffer
+            obj.GetDataBlock()
+            obj.data_buf = [obj.data_buf obj.EEG_packet];
+            
+            % If data buffer is longer than len_data_buf, remove oldest
+            % data points
+            dims = size(data_buf);
+            if dims(2) > 1e6 * obj.len_data_buf / obj.props.samplingInterval
+                obj.data_buf = obj.data_buf(:, dims(2) - 1e6 * obj.len_data_buf / obj.props.samplingInterval : dims(2));
+            end
+           end
+        end
+        
         function Close(obj)
             % Close all open socket connections
             pnet('closeall');
@@ -231,6 +238,8 @@ classdef ActiChamp < handle
             disp('connection closed');
             
         end
+        
+        
     
 end
 end
