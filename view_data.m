@@ -7,7 +7,6 @@ function handles = view_data(obj)
 
         %Define listeners to respond to GUI/Data events
     addlistener (obj, 'data_buf', 'PostSet', @(o,e) onNewData(handles,e.AffectedObject));
-    addlistener (handles.Settings.Range, 'String', 'PostSet', @(o,e) onNewDataRange(handles,e.AffectedObject));
     addlistener (obj, 'channelNames', 'PostSet', @(o,e) onPropChange(handles,e.AffectedObject));
 end
 
@@ -33,10 +32,12 @@ function handles = initGUI()
     lblRange =  findobj(hFig, 'tag' , 'lblRange');
     editRange =  findobj(hFig, 'tag' , 'editRange');
     chanSelect =  findobj(hFig, 'tag' , 'lstChannels');
+    lblTime = findobj(hFig,'tag','lblTime');
+    editTime = findobj(hFig,'tag','editTime');
     
     
     handles_Settings = struct(  'HostIP',editHostIP, 'btConnect',btConnect, 'Range',editRange,...
-                                'lstChannels',chanSelect);
+                                'lstChannels',chanSelect,'Time',editTime);
     
     % *** Default tab
     
@@ -105,12 +106,7 @@ function updateDCOffset(handles,obj)
 
 end
 
-function onNewDataRange(handles,obj)
-range = 1e3*str2num(get(handles.Settings.Range,'String'));
-set(handles.tabDC.ax,'YLim',[-range range]);
-set(handles.tabPlotEEG.axTime,'YLim',[-range range]);
 
-end
 
 function onPropChange(handles,obj)
 % Populate list box with channel names

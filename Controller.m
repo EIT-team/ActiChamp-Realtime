@@ -9,6 +9,8 @@ h = view_data(Acti);
 set(h.fig,'CloseRequestFcn',{@onWindowClose,Acti});
 set(h.Settings.btConnect,'Callback',{@onConnect,Acti});
 set(h.Settings.lstChannels,'Callback',{@onChannelSelect,h});
+set(h.Settings.Time,'Callback',{@onTimeChange,Acti});
+set(h.Settings.Range,'Callback',{@onRangeChange,h});
 
 end
 
@@ -43,8 +45,19 @@ function onConnect(self,eventdata,obj)
 
 end
 
+function onRangeChange(self,eventdata,h)
+Range = 1e3*str2num(get(self,'String'));
+if (Range)
+set(h.tabDC.ax,'YLim',[-Range Range]);
+set(h.tabPlotEEG.axTime,'YLim',[-Range Range]);
+end
+end
 
+function onTimeChange(self,eventdata,obj)
 
-function onChannelSelect(self,eventdata,h)
+Time = str2num(get(self,'String'));
+if (Time)
+obj.len_data_buf = Time;
+end
 
 end
