@@ -1,10 +1,11 @@
-function handles = view_data(obj)
+function handles = view_data(obj) 
 
     %Do initial plot
     handles = initGUI();
-
+    handles.settings.ChanToPlot =1;
     % set(handles,'XDataMode','manual')
 
+        %Define listeners to respond to GUI/Data events
     addlistener (obj, 'data_buf', 'PostSet', @(o,e) onNewData(handles,e.AffectedObject));
     addlistener (handles.Settings.Range, 'String', 'PostSet', @(o,e) onNewDataRange(handles,e.AffectedObject));
     addlistener (obj, 'channelNames', 'PostSet', @(o,e) onPropChange(handles,e.AffectedObject));
@@ -94,24 +95,26 @@ function onNewData(handles,obj)
 end
 
 function updateEEGPlot(handles,obj)
-
-set(handles.tabPlotEEG.plotTime,'YData',obj.data_buf(1,:))
+%Update this to plot whichever channel(s) are selected
+selectedChan = get(handles.Settings.lstChannels,'Value');
+set(handles.tabPlotEEG.plotTime,'YData',obj.data_buf(selectedChan,:))
 
 end
 
 function updateDCOffset(handles,obj)
 
     set(handles.tabDC.bar,'YData',mean(obj.EEG_packet,2));
-    
+
 end
 
 function onNewDataRange(handles,obj)
 range = 1e3*str2num(get(handles.Settings.Range,'String'));
 set(handles.tabDC.ax,'YLim',[-range range]);
+set(handles.tabPlotEEG.axTime,'YLim',[-range range]);
+
 end
 
 function onPropChange(handles,obj)
-disp('Prop Change')
 % Populate list box with channel names
 set(handles.Settings.lstChannels,'String',obj.props.channelNames);
 end

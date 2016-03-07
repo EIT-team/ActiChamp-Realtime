@@ -8,7 +8,7 @@ h = view_data(Acti);
 
 set(h.fig,'CloseRequestFcn',{@onWindowClose,Acti});
 set(h.Settings.btConnect,'Callback',{@onConnect,Acti});
-set(h.Settings.lstChannels,'Callback',{@onChannelSelect,h,Acti});
+set(h.Settings.lstChannels,'Callback',{@onChannelSelect,h});
 
 end
 
@@ -43,7 +43,8 @@ function onConnect(self,eventdata,obj)
 
 end
 
-function onChannelSelect(self,eventdata,h,obj)
-set(h.tabPlotEEG.plotTime,'YData',obj.data_buf(1,:))
+
+
+function onChannelSelect(self,eventdata,h)
 
 end

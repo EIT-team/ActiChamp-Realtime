@@ -1,9 +1,9 @@
 classdef ActiChamp < handle
     
     properties (SetObservable = true)
+        %Use these to trigger listeners to update GUI
         data_buf = []       %Data buffer
-        channelNames             %EEG properties (sampling rate etc)
-
+        channelNames = []
     end
     
     properties 
@@ -21,7 +21,8 @@ classdef ActiChamp < handle
         msec_read           %How many mseconds read so far
         lastBlock           %Index of most recently read data block
         print_markers = 0   %Set to 1 to print marker/trigger info to console
-        props             %EEG properties (sampling rate etc)
+        props            %EEG properties (sampling rate etc)
+
 
     end
     
@@ -29,11 +30,7 @@ classdef ActiChamp < handle
         
     end
     
-    properties (Dependent = true)
-    end
-    
-    events
-        UpdatedProps
+    events (ListenAccess = 'public', NotifyAccess = 'public')
     end
     
     methods
@@ -42,7 +39,6 @@ classdef ActiChamp < handle
         function Connect(obj)
             % Create TCP connection to EEG amp
             obj.con = pnet('tcpconnect', obj.ip, obj.port);
-            
             stat = pnet(obj.con,'status');
             if stat > 0
                 disp('Connection Established');
@@ -76,8 +72,12 @@ classdef ActiChamp < handle
             obj.props.samplingInterval = swapbytes(pnet(obj.con,'read', 1, 'double', 'network'));
             obj.props.resolutions = swapbytes(pnet(obj.con,'read', obj.props.channelCount, 'double', 'network'));
             allChannelNames = pnet(obj.con,'read', obj.hdr.size - 36 - obj.props.channelCount * 8);
+            
+            %Storing channelNames in two places to trigger GUI listener
+            %Working for now, not optimal method of doing it.
             obj.props.channelNames = obj.SplitChannelNames(allChannelNames);
             obj.channelNames = obj.props.channelNames;
+            
         end
         
         function channelNames = SplitChannelNames(obj,allChannelNames)
@@ -114,6 +114,7 @@ classdef ActiChamp < handle
             % Read data in float format
             obj.data = swapbytes(pnet(obj.con,'read', obj.props.channelCount * obj.datahdr.points, 'single', 'network'));
             obj.EEG_packet = reshape(obj.data, obj.props.channelCount, length(obj.data) / obj.props.channelCount);
+            
             % Define markers struct and read markers
             obj.markers = struct('size',[],'position',[],'points',[],'channel',[],'type',[],'description',[]);
             for m = 1:obj.datahdr.markerCount
@@ -245,7 +246,7 @@ classdef ActiChamp < handle
            
            obj.Close()
         end
-        
+          
         function Close(obj)
             % Close all open socket connections
             pnet('closeall');
