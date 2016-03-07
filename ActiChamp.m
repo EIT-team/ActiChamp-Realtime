@@ -22,7 +22,7 @@ classdef ActiChamp < handle
         lastBlock           %Index of most recently read data block
         print_markers = 0   %Set to 1 to print marker/trigger info to console
         props            %EEG properties (sampling rate etc)
-
+        Fs
 
     end
     
@@ -36,10 +36,10 @@ classdef ActiChamp < handle
     methods
         
         
-        function Connect(obj)
+        function Connect(self)
             % Create TCP connection to EEG amp
-            obj.con = pnet('tcpconnect', obj.ip, obj.port);
-            stat = pnet(obj.con,'status');
+            self.con = pnet('tcpconnect', self.ip, self.port);
+            stat = pnet(self.con,'status');
             if stat > 0
                 disp('Connection Established');
             else
@@ -48,39 +48,42 @@ classdef ActiChamp < handle
             
         end
         
-        function ReadHeader(obj)
+        function ReadHeader(self)
             % define a struct for the header
-            obj.hdr = struct('uid',[],'size',[],'type',[]);
+            self.hdr = struct('uid',[],'size',[],'type',[]);
             
             % read id, size and type of the message
             % swapbytes is important for correct byte order of MATLAB variables
             % pnet behaves somehow strange with byte order option
-            obj.hdr.uid = pnet(obj.con,'read', 16);
-            obj.hdr.size = swapbytes(pnet(obj.con,'read', 1, 'uint32', 'network'));
-            obj.hdr.type = swapbytes(pnet(obj.con,'read', 1, 'uint32', 'network'));
+            self.hdr.uid = pnet(self.con,'read', 16);
+            self.hdr.size = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
+            self.hdr.type = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
             
             
         end
         
-        function ReadStartMessage(obj)
+        function ReadStartMessage(self)
             
             % define a struct for the EEG properties
-            obj.props = struct('channelCount',[],'samplingInterval',[],'resolutions',[],'channelNames',[]);
+            self.props = struct('channelCount',[],'samplingInterval',[],'resolutions',[],'channelNames',[]);
             
             % read EEG properties
-            obj.props.channelCount = swapbytes(pnet(obj.con,'read', 1, 'uint32', 'network'));
-            obj.props.samplingInterval = swapbytes(pnet(obj.con,'read', 1, 'double', 'network'));
-            obj.props.resolutions = swapbytes(pnet(obj.con,'read', obj.props.channelCount, 'double', 'network'));
-            allChannelNames = pnet(obj.con,'read', obj.hdr.size - 36 - obj.props.channelCount * 8);
+            self.props.channelCount = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
+            self.props.samplingInterval = swapbytes(pnet(self.con,'read', 1, 'double', 'network'));
+            self.props.resolutions = swapbytes(pnet(self.con,'read', self.props.channelCount, 'double', 'network'));
+            allChannelNames = pnet(self.con,'read', self.hdr.size - 36 - self.props.channelCount * 8);
             
             %Storing channelNames in two places to trigger GUI listener
             %Working for now, not optimal method of doing it.
-            obj.props.channelNames = obj.SplitChannelNames(allChannelNames);
-            obj.channelNames = obj.props.channelNames;
+            self.props.channelNames = self.SplitChannelNames(allChannelNames);
+            self.channelNames = self.props.channelNames;
+            
+            %Set sampling frequency
+            self.Fs = 1./(self.props.samplingInterval/1e6);
             
         end
         
-        function channelNames = SplitChannelNames(obj,allChannelNames)
+        function channelNames = SplitChannelNames(self,allChannelNames)
             % allChannelNames   all channel names together in an array of char
             % channelNames      channel names splitted in a cell array of strings
             
@@ -103,54 +106,54 @@ classdef ActiChamp < handle
             end
         end
         
-        function ReadDataMessage(obj)
+        function ReadDataMessage(self)
             % Define data header struct and read data header
-            obj.datahdr = struct('block',[],'points',[],'markerCount',[]);
+            self.datahdr = struct('block',[],'points',[],'markerCount',[]);
             
-            obj.datahdr.block = swapbytes(pnet(obj.con,'read', 1, 'uint32', 'network'));
-            obj.datahdr.points = swapbytes(pnet(obj.con,'read', 1, 'uint32', 'network'));
-            obj.datahdr.markerCount = swapbytes(pnet(obj.con,'read', 1, 'uint32', 'network'));
+            self.datahdr.block = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
+            self.datahdr.points = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
+            self.datahdr.markerCount = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
             
             % Read data in float format
-            obj.data = swapbytes(pnet(obj.con,'read', obj.props.channelCount * obj.datahdr.points, 'single', 'network'));
-            obj.EEG_packet = reshape(obj.data, obj.props.channelCount, length(obj.data) / obj.props.channelCount);
+            self.data = swapbytes(pnet(self.con,'read', self.props.channelCount * self.datahdr.points, 'single', 'network'));
+            self.EEG_packet = reshape(self.data, self.props.channelCount, length(self.data) / self.props.channelCount);
             
             % Define markers struct and read markers
-            obj.markers = struct('size',[],'position',[],'points',[],'channel',[],'type',[],'description',[]);
-            for m = 1:obj.datahdr.markerCount
+            self.markers = struct('size',[],'position',[],'points',[],'channel',[],'type',[],'description',[]);
+            for m = 1:self.datahdr.markerCount
                 marker = struct('size',[],'position',[],'points',[],'channel',[],'type',[],'description',[]);
                 
                 % Read integer information of markers
-                marker.size = swapbytes(pnet(obj.con,'read', 1, 'uint32', 'network'));
-                marker.position = swapbytes(pnet(obj.con,'read', 1, 'uint32', 'network'));
-                marker.points = swapbytes(pnet(obj.con,'read', 1, 'uint32', 'network'));
-                marker.channel = swapbytes(pnet(obj.con,'read', 1, 'int32', 'network'));
+                marker.size = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
+                marker.position = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
+                marker.points = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
+                marker.channel = swapbytes(pnet(self.con,'read', 1, 'int32', 'network'));
                 
                 % type and description of markers are zero-terminated char arrays
                 % of unknown length
-                c = pnet(obj.con,'read', 1);
+                c = pnet(self.con,'read', 1);
                 while c ~= 0
                     marker.type = [marker.type c];
-                    c = pnet(obj.con,'read', 1);
+                    c = pnet(self.con,'read', 1);
                 end
                 
-                c = pnet(obj.con,'read', 1);
+                c = pnet(self.con,'read', 1);
                 while c ~= 0
                     marker.description = [marker.description c];
-                    c = pnet(obj.con,'read', 1);
+                    c = pnet(self.con,'read', 1);
                 end
                 
                 % Add marker to array
-                obj.markers(m) = marker;
+                self.markers(m) = marker;
             end
             
         end
         
-        function GetProperties(obj)
+        function GetProperties(self)
            
         end
         
-        function GetDataBlock(obj)
+        function GetDataBlock(self)
             % Read data from EEG until a data packet is received
             % 
             %
@@ -158,47 +161,47 @@ classdef ActiChamp < handle
             
             packet_read = 0;
             %Open TCP connection
-            if isempty(obj.con)
-                obj.Connect()
+            if isempty(self.con)
+                self.Connect()
             end
             
             while ~packet_read % Main loop
                 try
                     % check for existing data in socket buffer
-                    tryheader = pnet(obj.con, 'read', obj.header_size, 'byte', 'network', 'view', 'noblock');
+                    tryheader = pnet(self.con, 'read', self.header_size, 'byte', 'network', 'view', 'noblock');
                     
                     while ~isempty(tryheader)
                         
                         % Read header of RDA message
-                        obj.ReadHeader();
+                        self.ReadHeader();
                         
-                        switch obj.hdr.type
+                        switch self.hdr.type
                             case 1       % Start, Setup information like EEG properties
                                 disp('Start');
                                 % Read and display EEG properties
-                                obj.ReadStartMessage();
-                                disp(obj.props);
+                                self.ReadStartMessage();
+                                disp(self.props);
                                 
                                 % Reset block counter to check overflows
-                                obj.lastBlock = -1;
+                                self.lastBlock = -1;
                                 
                                 % set data buffer to empty
-                                obj.data_buf = [];
+                                self.data_buf = [];
                                 
                             case 4       % 32Bit Data block
                                 % Read data and markers from message
-                                obj.ReadDataMessage();
+                                self.ReadDataMessage();
                                 
                                 % check tcpip buffer overflow
-                                if obj.lastBlock ~= -1 && obj.datahdr.block > obj.lastBlock + 1
-                                    disp(['******* Overflow with ' int2str(datahdr.block - obj.lastBlock) ' blocks ******']);
+                                if self.lastBlock ~= -1 && self.datahdr.block > self.lastBlock + 1
+                                    disp(['******* Overflow with ' int2str(datahdr.block - self.lastBlock) ' blocks ******']);
                                 end
-                                obj.lastBlock = obj.datahdr.block;
+                                self.lastBlock = self.datahdr.block;
                                 
                                 % print marker info to MATLAB console
-                                if obj.datahdr.markerCount > 0 && obj.print_markers
-                                    for m = 1:obj.datahdr.markerCount
-                                        disp(obj.markers(m));
+                                if self.datahdr.markerCount > 0 && self.print_markers
+                                    for m = 1:self.datahdr.markerCount
+                                        disp(self.markers(m));
                                     end
                                     
                                     %Update how many seconds have been
@@ -210,13 +213,13 @@ classdef ActiChamp < handle
 
                         case 3       % Stop message
                             disp('Stop');
-                            obj.data = pnet(obj.con, 'read', obj.hdr.size - obj.header_size);
-                            obj.finish = true;
+                            self.data = pnet(self.con, 'read', self.hdr.size - self.header_size);
+                            self.finish = true;
                             
                             otherwise    % ignore all unknown types, but read the package from buffer
-                                obj.data = pnet(obj.con, 'read', obj.hdr.size - obj.header_size);
+                                self.data = pnet(self.con, 'read', self.hdr.size - self.header_size);
                     end
-                    tryheader = pnet(obj.con, 'read', obj.header_size, 'byte', 'network', 'view', 'noblock');
+                    tryheader = pnet(self.con, 'read', self.header_size, 'byte', 'network', 'view', 'noblock');
                 end
                 catch
                     er = lasterror;
@@ -228,29 +231,29 @@ classdef ActiChamp < handle
         
         end
         
-        function Go(obj)
-            obj.finish = 0;
-           while ~obj.finish
+        function Go(self)
+            self.finish = 0;
+           while ~self.finish
             % Get Block of data and append to data buffer
-            obj.GetDataBlock()
-            obj.data_buf = [obj.data_buf obj.EEG_packet];
+            self.GetDataBlock()
+            self.data_buf = [self.data_buf self.EEG_packet];
             
             % If data buffer is longer than len_data_buf, remove oldest
             % data points
-            dims = size(obj.data_buf);
-            if dims(2) > 1e6 * obj.len_data_buf / obj.props.samplingInterval
-                obj.data_buf = obj.data_buf(:, dims(2) - 1e6 * obj.len_data_buf / obj.props.samplingInterval : dims(2));
+            dims = size(self.data_buf);
+            if dims(2) > 1e6 * self.len_data_buf / self.props.samplingInterval
+                self.data_buf = self.data_buf(:, dims(2) - 1e6 * self.len_data_buf / self.props.samplingInterval : dims(2));
             end
            end
            disp('Finished')
            
-           obj.Close()
+           self.Close()
         end
           
-        function Close(obj)
+        function Close(self)
             % Close all open socket connections
             pnet('closeall');
-            obj.con = [];
+            self.con = [];
             
             % Display a message
             disp('connection closed');
