@@ -19,7 +19,7 @@ classdef ActiChamp < handle
         len_data_buf = 1    %How much data to buffer (in seconds)
         markers             %Markers/triggers
         msec_read           %How many mseconds read so far
-        lastBlock           %Index of most recently read data block
+        lastBlock   = -1        %Index of most recently read data block
         print_markers = 0   %Set to 1 to print marker/trigger info to console
         props            %EEG properties (sampling rate etc)
         Fs
@@ -117,7 +117,7 @@ classdef ActiChamp < handle
             % Read data in float format
             self.data = swapbytes(pnet(self.con,'read', self.props.channelCount * self.datahdr.points, 'single', 'network'));
             self.EEG_packet = reshape(self.data, self.props.channelCount, length(self.data) / self.props.channelCount);
-            
+            self.EEG_packet(2,:) = self.EEG_packet(2,:)*2;
             % Define markers struct and read markers
             self.markers = struct('size',[],'position',[],'points',[],'channel',[],'type',[],'description',[]);
             for m = 1:self.datahdr.markerCount
@@ -158,7 +158,7 @@ classdef ActiChamp < handle
             % 
             %
             
-            
+%             disp(self.lastBlock)
             packet_read = 0;
             %Open TCP connection
             if isempty(self.con)
@@ -183,7 +183,7 @@ classdef ActiChamp < handle
                                 disp(self.props);
                                 
                                 % Reset block counter to check overflows
-                                self.lastBlock = -1;
+%                                 self.lastBlock = -1;
                                 
                                 % set data buffer to empty
                                 self.data_buf = [];
@@ -233,10 +233,15 @@ classdef ActiChamp < handle
         
         function Go(self)
             self.finish = 0;
+            self.lastBlock = -1;
            while ~self.finish
             % Get Block of data and append to data buffer
             self.GetDataBlock()
-            self.data_buf = [self.data_buf self.EEG_packet];
+            
+            siz_EEG = size(self.EEG_packet);
+            dims = size(self.data_buf);
+
+            self.data_buf(:,(dims(2)+1):(dims(2)+siz_EEG(2)))=self.EEG_packet;
             
             % If data buffer is longer than len_data_buf, remove oldest
             % data points

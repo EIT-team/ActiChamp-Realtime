@@ -7,7 +7,7 @@ handles = Viewer(Acti);
 
 set(handles.fig,'CloseRequestFcn',{@onWindowClose,Acti});
 set(handles.Settings.btConnect,'Callback',{@onConnect,Acti});
-% set(h.Settings.lstChannels,'Callback',{@onChannelSelect,h});
+set(handles.Settings.lstChannels,'Callback',{@onChannelSelect,handles});
 set(handles.Settings.Time,'Callback',{@onTimeChange,Acti,handles});
 set(handles.Settings.Range,'Callback',{@onRangeChange,handles});
 
@@ -48,6 +48,11 @@ else
     set(self,'String','Connect');
 end
 
+end
+
+function onChannelSelect(self,eventdata,h)
+            h.chansToPlot = get(self,'Value');
+            
 end
 
 function onRangeChange(self,eventdata,h)

@@ -28,10 +28,10 @@ classdef Viewer < handle
             
             %Initialise GUI
             handles.initGUI();
-            %Compute inital filter coefficients
             
             %Define listeners to respond to GUI/Data events
             addlistener (Acti, 'data_buf', 'PostSet', @(o,e) handles.onNewData(handles,e.AffectedObject));
+            %Populate list box with channels names on start
             addlistener (Acti, 'channelNames', 'PostSet', @(o,e) handles.onPropChange(handles,e.AffectedObject));
         end
         
@@ -66,10 +66,11 @@ classdef Viewer < handle
             editFiltFreq = findobj(hFig,'tag','editFiltFreq');
             lblFiltBW = findobj(hFig,'tag','lblFiltBW');
             editFiltBW = findobj(hFig,'tag','editFiltBW');
+            lblFs = findobj(hFig,'tag','lblFs');
             
             handles_Settings = struct(  'HostIP',editHostIP, 'btConnect',btConnect, 'Range',editRange,...
                 'lstChannels',chanSelect,'Time',editTime,'chkFilter',chkFilter, 'chkDemod',chkDemod,...
-                'FiltOrder',popFiltOrder','FiltFreq',editFiltFreq, 'FiltBW',editFiltBW);
+                'FiltOrder',popFiltOrder','FiltFreq',editFiltFreq, 'FiltBW',editFiltBW, 'lblFs',lblFs);
             
             
             hTabPlotEEG = uitab('Parent', hTabGroupPlot, 'Title', 'Default');
@@ -142,7 +143,8 @@ classdef Viewer < handle
                 data_to_plot = abs(hilbert(data_to_plot));
             end
             
-            set(handles.tabPlotEEG.plotTime,'YData',data_to_plot)
+            
+            set(handles.tabPlotEEG.plotTime,'YData',data_to_plot(:,1:100:end))
             
         end
         
@@ -159,6 +161,8 @@ classdef Viewer < handle
         function onPropChange(self,handles,obj)
             % Populate list box with channel names
             set(handles.Settings.lstChannels,'String',obj.props.channelNames);
+            Fs = 1e6./obj.props.samplingInterval;
+            set(handles.Settings.lblFs,'String',['Fs: ' num2str(Fs) 'Hz']);
         end
         
     end
