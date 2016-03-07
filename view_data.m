@@ -13,47 +13,45 @@ end
 
 function handles = initGUI()
 
-    hFig = figure('Visible','off','Position',[0,0,800,700],'ToolBar','none');
+    %Load layout from GUIDE figure
+    hFig = hgload('fig_layout.fig');
            
     
    %Define tab grounp
    
-    hTabGroupPlot = uitabgroup('Parent',hFig, 'Position',[0.2 0.05 0.75 0.9]);
+   %Can't create tabs using GUIDE, so get tabs location from 'helper' panel
+   %object.
+   hPlotPanel = findobj(hFig,'tag','Plotpanel');
+   hTabGroupPlot = uitabgroup('Parent',hFig, 'Units', get(hPlotPanel,'Units'),'Position',get(hPlotPanel,'Position'));
     
     %Settings panel
-    hSettingsPanel = uipanel('Parent',hFig, 'Position',[0.02 0.05 0.15 0.9]);
+    hSettingsPanel = findobj(hFig, 'tag' ,'settingsPanel');
     
-    lblHost = uicontrol(    'Parent',hSettingsPanel,'Style','text','String','Host IP:',...
-                            'BackgroundColor',get(hFig,'Color'),'Position',[35, 590, 50, 20]);
-                        
-    editHostIP = uicontrol( 'Parent',hSettingsPanel,'Style','edit','String','128.40.45.70',...
-                            'Position',[5,570,100,16]);
-                        
-    btConnect = uicontrol(  'Parent',hSettingsPanel,'Style','pushbutton','String','Connect',...
-                            'Position',[5,550,100,16]);
-                        
-    lblRange = uicontrol(   'Parent',hSettingsPanel,'Style','text','String','Voltage Range (mV):',...
-                            'Position',[0,500,115,16]);
-                        
-    editRange = uicontrol(  'Parent',hSettingsPanel,'Style','edit','String','10',...
-                            'Position',[5,480,100,16]);
-                        
-    chanSelect = uicontrol ('Parent',hSettingsPanel,'Style','listbox','Position',[5,300,100,160]);
+    lblHost =  findobj(hFig, 'tag' , 'lblHost');
+    editHostIP =  findobj(hFig, 'tag' , 'editHostIP');
+    btConnect =  findobj(hFig, 'tag' , 'btConnect');
+    lblRange =  findobj(hFig, 'tag' , 'lblRange');
+    editRange =  findobj(hFig, 'tag' , 'editRange');
+    chanSelect =  findobj(hFig, 'tag' , 'lstChannels');
+    
     
     handles_Settings = struct(  'HostIP',editHostIP, 'btConnect',btConnect, 'Range',editRange,...
                                 'lstChannels',chanSelect);
     
     % *** Default tab
+    
     hTabPlotEEG = uitab('Parent', hTabGroupPlot, 'Title', 'Default');
-
-
                       
     % construct the axes to display time and frequency domain data
-    axTime = axes('Parent',hTabPlotEEG,'Units','Pixels','Position',[25,240,590,180]); 
-    axFreq = axes('Parent',hTabPlotEEG,'Units','Pixels','Position',[25,25,590,180]); 
-   
-    hTime = plot(axTime,1:10);
-    hFreq = plot(axFreq,1:10);
+    % Axes are defined as children of panel object in GUIDE, need to change
+    % this to the tab being used.
+    axTime = findobj(hFig,'tag', 'axTime');
+    set(axTime,'Parent',hTabPlotEEG);
+    axFreq = findobj(hFig,'tag', 'axFreq');
+    set(axFreq,'Parent',hTabPlotEEG);  
+    
+    hTime = plot(axTime,(1:10)/10);
+    hFreq = plot(axFreq,(1:10)/10);
     
     handles_TabPlotEEG = struct('tab',hTabPlotEEG, 'axTime',axTime, 'axFreq',axFreq, 'plotTime',hTime, 'plotFreq',hFreq);
     
