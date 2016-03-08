@@ -1,7 +1,9 @@
 classdef ActiChamp < handle
-    
+    % Class definition for ActiChamp Object
+    % Tom Dowrick 8.3.2016
+    % Mostly based on code provided by ActiChamp
     properties (SetObservable = true)
-        %Use these to trigger listeners to update GUI
+        %Use these to trigger listeners to update GUI elements
         EEG_packet = []     %Single packet of EEG data in 'samples x channels' format  
         channelNames = []
     end
@@ -16,27 +18,22 @@ classdef ActiChamp < handle
         datahdr             %Data block headers
         data_buf            %data buffer          
         data                %Block of data
-        len_data_buf = 1    %How much data to buffer (in seconds)
+        max_data_buf = 1    %How much data to buffer (in seconds)
         markers             %Markers/triggers
-        data_buf_dims =[]       %How many mseconds read so far
+        data_buf_len=[]       %How many mseconds read so far
         lastBlock   = -1        %Index of most recently read data block
         print_markers = 0   %Set to 1 to print marker/trigger info to console
         props            %EEG properties (sampling rate etc)
         Fs
         V_DCs
+        len_packet          %length of EEG packet (in samples)
         
     end
     
-    properties (SetAccess = private)
-        
-    end
-    
-    events (ListenAccess = 'public', NotifyAccess = 'public')
-    end
+
     
     methods
-        
-        
+
         function Connect(self)
             % Create TCP connection to EEG amp
             self.con = pnet('tcpconnect', self.ip, self.port);
@@ -59,8 +56,7 @@ classdef ActiChamp < handle
             self.hdr.uid = pnet(self.con,'read', 16);
             self.hdr.size = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
             self.hdr.type = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
-            
-            
+
         end
         
         function ReadStartMessage(self)
@@ -118,6 +114,7 @@ classdef ActiChamp < handle
             % Read data in float format
             self.data = swapbytes(pnet(self.con,'read', self.props.channelCount * self.datahdr.points, 'single', 'network'));
             self.EEG_packet = reshape(self.data, self.props.channelCount, length(self.data) / self.props.channelCount);
+            self.len_packet = size(self.EEG_packet,2);
             
             % Define markers struct and read markers
             self.markers = struct('size',[],'position',[],'points',[],'channel',[],'type',[],'description',[]);

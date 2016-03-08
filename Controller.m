@@ -1,10 +1,14 @@
 function Controller
+% Creates Actichamp and GUI objects
+% Sets up callbacks for GUI elements
+% Tom Dowrick 8.3.2016
 
 clear all
 
 Acti = ActiChamp;
 handles = Viewer(Acti);
 
+%Create callbacks for buttons, text boxes etc
 set(handles.fig,'CloseRequestFcn',{@onWindowClose,Acti});
 set(handles.Settings.btConnect,'Callback',{@onConnect,Acti});
 set(handles.Settings.lstChannels,'Callback',{@onChannelSelect,handles});
@@ -21,16 +25,20 @@ set(handles.Settings.FiltUpdateTime,'Callback',{@updateFiltTime,handles});
 
 end
 
-function onWindowClose(self,eventdata,obj)
+function onWindowClose(self,eventdata,Acti)
+% Delete Actichamp object on window close
+%   self - triggering object
+%   eventdata - not used
+%   Acti - Actichamp object
 
-selection = questdlg(['Close MATLAB RDA Client?'],...
+selection = questdlg(['Close Actichamp Client?'],...
     ['Closing...'],...
     'Yes','No','Yes');
 if strcmp(selection,'No')
     return;
 end
 
-obj.finish = 1;
+Acti.finish = 1;
 
 % Delete and close the window
 delete(self);
@@ -39,25 +47,39 @@ delete(self);
 
 end
 
-function onConnect(self,eventdata,obj)
+function onConnect(self,eventdata,Acti)
+% Connect/disconnect to Actichamp hardware
+%   self - triggering object
+%   eventdata - not used
+%   Acti - Actichamp object
 
 text = get(self, 'String');
 if strcmp(text, 'Connect')
     set(self,'String','Disconnect');
-    obj.Go()
+    Acti.Go()
 else
-    obj.finish = 1;
+    Acti.finish = 1;
     set(self,'String','Connect');
 end
 
 end
 
 function onChannelSelect(self,eventdata,h)
+% Choose what channel(s) to plot
+% self - triggering object
+% eventdata - not used
+% h - handles to GUI objects
+
 h.chansToPlot = get(self,'Value');
 
 end
 
 function onRangeChange(self,eventdata,h)
+% Update voltage range (y-axis)
+% self - triggering object
+% eventdata - not used
+% h - handles to GUI objects
+
 Range = 1e3*str2num(get(self,'String'));
 if (Range)
     set(h.tabDC.ax,'YLim',[-Range Range]);
@@ -67,10 +89,14 @@ end
 end
 
 function onTimeChange(self,eventdata,Acti,h)
+% Update Time range (x-axis)
+% self - triggering object
+% eventdata - not used
+% h - handles to GUI objects
 
 Time = str2num(get(self,'String'));
 if (Time)
-    Acti.len_data_buf = Time;
+    Acti.max_data_buf = Time;
     set(h.tabPlotEEG.axTime,'XLim',[0 Time])
     set(h.tabPlotEEG.axFilt,'XLim',[0 Time])
 end
@@ -78,6 +104,11 @@ end
 end
 
 function initFilter(self,eventdata,Acti,h)
+% Compute filter coefficients
+% self - triggering object
+% eventdata - not used
+% Acti - Actichamp object
+% h - handles to GUI objects
 
 %Get values and check if numeric
 h.filtOrder = get(h.Settings.FiltOrder,'Value');
@@ -85,13 +116,18 @@ h.filtFreq = str2num(get(h.Settings.FiltFreq,'String'));
 h.filtBW = str2num(get(h.Settings.FiltBW,'String'));
 
 if isnumeric([h.filtOrder,h.filtFreq,h.filtBW])
-    
+    %Set coefficients
     [h.filtercoeffs.b, h.filtercoeffs.a] = butter(...
         h.filtOrder, (h.filtFreq + [-h.filtBW, h.filtBW])./(Acti.Fs./2));
 end
 end
 
 function updateFiltTime(self,eventdata,h)
+% Set how often filter plot is updated (in seconds)
+% self - triggering object
+% eventdata - not used
+% % h - handles to GUI objects
+
 Time = str2num(get(self,'String'));
 if (Time)
     h.filtUpdateTime = Time;
