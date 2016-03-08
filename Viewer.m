@@ -60,6 +60,7 @@ classdef Viewer < handle
             chanSelect =  findobj(hFig, 'tag' , 'lstChannels');
             lblTime = findobj(hFig,'tag','lblTime');
             editTime = findobj(hFig,'tag','editTime');
+            chkDC = findobj(hFig,'tag','chkDC');
             chkFilter = findobj(hFig,'tag','chkFilter');
             chkDemod  = findobj(hFig,'tag','chkDemod');
             lblFiltOrder = findobj(hFig,'tag','lblFiltOrder');
@@ -75,7 +76,7 @@ classdef Viewer < handle
             handles_Settings = struct(  'HostIP',editHostIP, 'btConnect',btConnect, 'Range',editRange,...
                 'lstChannels',chanSelect,'Time',editTime,'chkFilter',chkFilter, 'chkDemod',chkDemod,...
                 'FiltOrder',popFiltOrder','FiltFreq',editFiltFreq, 'FiltBW',editFiltBW, 'lblFs',lblFs,...
-                'FiltUpdateTime',editFiltUpdate);
+                'FiltUpdateTime',editFiltUpdate, 'chkDC',chkDC);
             
             
             hTabPlotEEG = uitab('Parent', hTabGroupPlot, 'Title', 'Default');
@@ -143,7 +144,15 @@ classdef Viewer < handle
             siz_EEG = size(obj.EEG_packet);
             obj.data_buf_dims = size(obj.data_buf);
             newdata_index = (obj.data_buf_dims(2)+1):(obj.data_buf_dims(2)+siz_EEG(2));
-            obj.data_buf(:,newdata_index)=obj.EEG_packet;
+            
+            %Remove DC component
+            if (get(self.Settings.chkDC,'Value'))
+            
+            DC_corr = repmat(obj.V_DCs,1,siz_EEG(2));
+            obj.data_buf(:,newdata_index)=obj.EEG_packet - DC_corr;
+            else
+                obj.data_buf(:,newdata_index)=obj.EEG_packet;
+            end
             
             %Only update graph for active tab
             active_tab = get(handles.tabGroup,'SelectedIndex');
