@@ -2,11 +2,11 @@ classdef ActiChamp < handle
     
     properties (SetObservable = true)
         %Use these to trigger listeners to update GUI
-        data_buf = []       %Data buffer
+        EEG_packet = []     %Single packet of EEG data in 'samples x channels' format  
         channelNames = []
     end
     
-    properties 
+    properties
         ip = '128.40.45.70'
         con                 %TCP connection
         port = 51244        %Port for 32-bit data on ActiChamp
@@ -14,16 +14,17 @@ classdef ActiChamp < handle
         finish = 0;         %Data collection completed
         hdr                 %Message header
         datahdr             %Data block headers
-        EEG_packet          %Single packet of EEG data in 'samples x channels' format
+        data_buf            %data buffer          
         data                %Block of data
         len_data_buf = 1    %How much data to buffer (in seconds)
         markers             %Markers/triggers
-        msec_read           %How many mseconds read so far
+        data_buf_dims =[]       %How many mseconds read so far
         lastBlock   = -1        %Index of most recently read data block
         print_markers = 0   %Set to 1 to print marker/trigger info to console
         props            %EEG properties (sampling rate etc)
         Fs
-
+        V_DCs
+        
     end
     
     properties (SetAccess = private)
@@ -117,7 +118,7 @@ classdef ActiChamp < handle
             % Read data in float format
             self.data = swapbytes(pnet(self.con,'read', self.props.channelCount * self.datahdr.points, 'single', 'network'));
             self.EEG_packet = reshape(self.data, self.props.channelCount, length(self.data) / self.props.channelCount);
-            self.EEG_packet(2,:) = self.EEG_packet(2,:)*2;
+            
             % Define markers struct and read markers
             self.markers = struct('size',[],'position',[],'points',[],'channel',[],'type',[],'description',[]);
             for m = 1:self.datahdr.markerCount
@@ -149,16 +150,13 @@ classdef ActiChamp < handle
             
         end
         
-        function GetProperties(self)
-           
-        end
-        
+       
         function GetDataBlock(self)
             % Read data from EEG until a data packet is received
-            % 
+            %
             %
             
-%             disp(self.lastBlock)
+            %             disp(self.lastBlock)
             packet_read = 0;
             %Open TCP connection
             if isempty(self.con)
@@ -183,7 +181,7 @@ classdef ActiChamp < handle
                                 disp(self.props);
                                 
                                 % Reset block counter to check overflows
-%                                 self.lastBlock = -1;
+                                %                                 self.lastBlock = -1;
                                 
                                 % set data buffer to empty
                                 self.data_buf = [];
@@ -208,53 +206,42 @@ classdef ActiChamp < handle
                                     %recorded
                                 end
                                 packet_read = 1;
-                           
-                              
-
-                        case 3       % Stop message
-                            disp('Stop');
-                            self.data = pnet(self.con, 'read', self.hdr.size - self.header_size);
-                            self.finish = true;
-                            
+                                
+                                
+                                
+                            case 3       % Stop message
+                                disp('Stop');
+                                self.data = pnet(self.con, 'read', self.hdr.size - self.header_size);
+                                self.finish = true;
+                                
                             otherwise    % ignore all unknown types, but read the package from buffer
                                 self.data = pnet(self.con, 'read', self.hdr.size - self.header_size);
+                        end
+                        tryheader = pnet(self.con, 'read', self.header_size, 'byte', 'network', 'view', 'noblock');
                     end
-                    tryheader = pnet(self.con, 'read', self.header_size, 'byte', 'network', 'view', 'noblock');
-                end
                 catch
                     er = lasterror;
                     disp(er.message);
+                end
             end
-        end 
-        
-
-        
+            
+            
+            
         end
         
         function Go(self)
             self.finish = 0;
             self.lastBlock = -1;
-           while ~self.finish
-            % Get Block of data and append to data buffer
-            self.GetDataBlock()
-            
-            siz_EEG = size(self.EEG_packet);
-            dims = size(self.data_buf);
-
-            self.data_buf(:,(dims(2)+1):(dims(2)+siz_EEG(2)))=self.EEG_packet;
-            
-            % If data buffer is longer than len_data_buf, remove oldest
-            % data points
-            dims = size(self.data_buf);
-            if dims(2) > 1e6 * self.len_data_buf / self.props.samplingInterval
-                self.data_buf = self.data_buf(:, dims(2) - 1e6 * self.len_data_buf / self.props.samplingInterval : dims(2));
+            while ~self.finish
+                % Get Block of data and append to data buffer
+                self.GetDataBlock()
+                
             end
-           end
-           disp('Finished')
-           
-           self.Close()
+            disp('Finished')
+            
+            self.Close()
         end
-          
+        
         function Close(self)
             % Close all open socket connections
             pnet('closeall');
@@ -266,6 +253,6 @@ classdef ActiChamp < handle
         end
         
         
-    
-end
+        
+    end
 end

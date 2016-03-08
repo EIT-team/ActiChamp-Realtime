@@ -30,7 +30,7 @@ classdef Viewer < handle
             handles.initGUI();
             
             %Define listeners to respond to GUI/Data events
-            addlistener (Acti, 'data_buf', 'PostSet', @(o,e) handles.onNewData(handles,e.AffectedObject));
+            addlistener (Acti, 'EEG_packet', 'PostSet', @(o,e) handles.onNewData(handles,e.AffectedObject));
             %Populate list box with channels names on start
             addlistener (Acti, 'channelNames', 'PostSet', @(o,e) handles.onPropChange(handles,e.AffectedObject));
         end
@@ -83,18 +83,30 @@ classdef Viewer < handle
             axFreq = findobj(hFig,'tag', 'axFreq');
             set(axFreq,'Parent',hTabPlotEEG);
             
+            
+            %Set inital y-axis range
             hTime = plot(axTime,(1:10)/10);
             hFreq = plot(axFreq,(1:10)/10);
+            yrange = 1e3*str2num(get(editRange,'String'));
+            
+            set(axTime,'YLim',[-yrange yrange]);
+            xlabel(axTime,'Time (s)');
+            ylabel(axTime, '(uV)');
             
             handles_TabPlotEEG = struct('tab',hTabPlotEEG, 'axTime',axTime, 'axFreq',axFreq, 'plotTime',hTime, 'plotFreq',hFreq);
             
             % *** DC Offset Tab ***
             hTabDC = uitab('Parent', hTabGroupPlot, 'Title', 'DC Offset');
             
-            axDC = axes('Parent',hTabDC,'Units','Pixels','Position',[75,75,500,500]);
+            
+            axDC = findobj(hFig,'tag', 'axDC');
+            set(axDC,'Parent',hTabDC);
             hBar = bar(axDC,1:16,1:16);
-            xlabel('Channel');
-            ylabel( 'DC Offset (mV)');
+             xlabel(axDC,'Channel');
+             ylabel(axDC, 'DC Offset (uV)');
+            set(axDC,'YLim',[-yrange yrange]);
+            
+            
             
             handles_tabDC = struct('tab',hTabDC, 'ax',axDC, 'bar',hBar);
             
@@ -117,6 +129,35 @@ classdef Viewer < handle
         
         function onNewData(self,handles,obj)
             
+            %Update DC offsets
+            obj.V_DCs = mean(obj.EEG_packet,2);
+            
+            
+            %Check if filt/demod tick boxes are active
+            if (get(handles.Settings.chkFilter,'Value'))
+                
+                obj.EEG_packet = filtfilt(handles.filtercoeffs.b, handles.filtercoeffs.a, double(obj.EEG_packet));
+            end
+            
+            if (get(handles.Settings.chkDemod,'Value'))
+                obj.EEG_packet = abs(hilbert(obj.EEG_packet));
+            end
+            
+            %Append EEG_packet to data buffer
+            
+            siz_EEG = size(obj.EEG_packet);
+            obj.data_buf_dims = size(obj.data_buf);
+            newdata_index = (obj.data_buf_dims(2)+1):(obj.data_buf_dims(2)+siz_EEG(2));
+            obj.data_buf(:,newdata_index)=obj.EEG_packet;
+            
+            % If data buffer is longer than len_data_buf, reset buffer
+            % and display filt/demod data
+            obj.data_buf_dims = size(obj.data_buf);
+            if obj.data_buf_dims(2) > 1e6 * obj.len_data_buf / obj.props.samplingInterval
+                obj.data_buf = [];
+            end
+            
+            
             %Only update graph for active tab
             active_tab = get(handles.tabGroup,'SelectedIndex');
             switch active_tab
@@ -131,28 +172,21 @@ classdef Viewer < handle
         function updateEEGPlot(self,handles,obj)
             %Update this to plot whichever channel(s) are selected
             
-            data_to_plot = obj.data_buf(self.chansToPlot,:);
+            obj.data_buf_dims = size(obj.data_buf);
             
-            %Check if filt/demod tick boxes are active
-            if (get(handles.Settings.chkFilter,'Value'))
-                
-                data_to_plot = filtfilt(handles.filtercoeffs.b, handles.filtercoeffs.a, double(data_to_plot));
+            downsample = 50;
+            
+            if (obj.data_buf_dims) %Don't try to plot if empty
+                set(handles.tabPlotEEG.plotTime,'XData', (1:downsample:obj.data_buf_dims(2)).*1e-6.*obj.props.samplingInterval)
+                set(handles.tabPlotEEG.plotTime,'YData',obj.data_buf(self.chansToPlot,1:downsample:end))
             end
-            
-            if (get(handles.Settings.chkDemod,'Value'))
-                data_to_plot = abs(hilbert(data_to_plot));
-            end
-            
-            
-            set(handles.tabPlotEEG.plotTime,'YData',data_to_plot(:,1:100:end))
-            
         end
         
         
         
         function updateDCOffset(self,handles,obj)
             
-            set(handles.tabDC.bar,'YData',mean(obj.EEG_packet,2));
+            set(handles.tabDC.bar,'YData',obj.V_DCs);
             
         end
         

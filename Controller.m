@@ -60,6 +60,7 @@ Range = 1e3*str2num(get(self,'String'));
 if (Range)
     set(h.tabDC.ax,'YLim',[-Range Range]);
     set(h.tabPlotEEG.axTime,'YLim',[-Range Range]);
+    
 end
 end
 
@@ -68,8 +69,7 @@ function onTimeChange(self,eventdata,Acti,h)
 Time = str2num(get(self,'String'));
 if (Time)
     Acti.len_data_buf = Time;
-    
-    %     set(h.tabPlotEEG.axTime,'XLim',[0 Time])
+    set(h.tabPlotEEG.axTime,'XLim',[0 Time])
 end
 
 end
