@@ -17,6 +17,8 @@ set(handles.Settings.FiltFreq,'Callback',{@initFilter,Acti,handles});
 set(handles.Settings.FiltBW,'Callback',{@initFilter,Acti,handles});
 set(handles.Settings.FiltOrder,'Callback',{@initFilter,Acti,handles});
 
+set(handles.Settings.FiltUpdateTime,'Callback',{@updateFiltTime,handles});
+
 end
 
 function onWindowClose(self,eventdata,obj)
@@ -51,8 +53,8 @@ end
 end
 
 function onChannelSelect(self,eventdata,h)
-            h.chansToPlot = get(self,'Value');
-            
+h.chansToPlot = get(self,'Value');
+
 end
 
 function onRangeChange(self,eventdata,h)
@@ -70,6 +72,7 @@ Time = str2num(get(self,'String'));
 if (Time)
     Acti.len_data_buf = Time;
     set(h.tabPlotEEG.axTime,'XLim',[0 Time])
+    set(h.tabPlotEEG.axFilt,'XLim',[0 Time])
 end
 
 end
@@ -86,4 +89,12 @@ if isnumeric([h.filtOrder,h.filtFreq,h.filtBW])
     [h.filtercoeffs.b, h.filtercoeffs.a] = butter(...
         h.filtOrder, (h.filtFreq + [-h.filtBW, h.filtBW])./(Acti.Fs./2));
 end
+end
+
+function updateFiltTime(self,eventdata,h)
+Time = str2num(get(self,'String'));
+if (Time)
+    h.filtUpdateTime = Time;
+end
+
 end

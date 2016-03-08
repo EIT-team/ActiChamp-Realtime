@@ -17,6 +17,8 @@ classdef Viewer < handle
         filtercoeffs
         DataFilt
         DataDemod
+        filtUpdateTime = 1
+        filt_buf = []
         
     end
     
@@ -67,10 +69,13 @@ classdef Viewer < handle
             lblFiltBW = findobj(hFig,'tag','lblFiltBW');
             editFiltBW = findobj(hFig,'tag','editFiltBW');
             lblFs = findobj(hFig,'tag','lblFs');
+            lblFiltUpdate = findobj(hFig,'tag','lblFiltUpdate');
+            editFiltUpdate = findobj(hFig,'tag','editFiltUpdate');
             
             handles_Settings = struct(  'HostIP',editHostIP, 'btConnect',btConnect, 'Range',editRange,...
                 'lstChannels',chanSelect,'Time',editTime,'chkFilter',chkFilter, 'chkDemod',chkDemod,...
-                'FiltOrder',popFiltOrder','FiltFreq',editFiltFreq, 'FiltBW',editFiltBW, 'lblFs',lblFs);
+                'FiltOrder',popFiltOrder','FiltFreq',editFiltFreq, 'FiltBW',editFiltBW, 'lblFs',lblFs,...
+                'FiltUpdateTime',editFiltUpdate);
             
             
             hTabPlotEEG = uitab('Parent', hTabGroupPlot, 'Title', 'Default');
@@ -80,20 +85,20 @@ classdef Viewer < handle
             % this to the tab being used.
             axTime = findobj(hFig,'tag', 'axTime');
             set(axTime,'Parent',hTabPlotEEG);
-            axFreq = findobj(hFig,'tag', 'axFreq');
-            set(axFreq,'Parent',hTabPlotEEG);
+            axFilt = findobj(hFig,'tag', 'axFilt');
+            set(axFilt,'Parent',hTabPlotEEG);
             
             
             %Set inital y-axis range
             hTime = plot(axTime,(1:10)/10);
-            hFreq = plot(axFreq,(1:10)/10);
+            hFilt = plot(axFilt,(1:10)/10);
             yrange = 1e3*str2num(get(editRange,'String'));
             
             set(axTime,'YLim',[-yrange yrange]);
             xlabel(axTime,'Time (s)');
             ylabel(axTime, '(uV)');
             
-            handles_TabPlotEEG = struct('tab',hTabPlotEEG, 'axTime',axTime, 'axFreq',axFreq, 'plotTime',hTime, 'plotFreq',hFreq);
+            handles_TabPlotEEG = struct('tab',hTabPlotEEG, 'axTime',axTime, 'axFilt',axFilt, 'plotTime',hTime, 'plotFilt',hFilt);
             
             % *** DC Offset Tab ***
             hTabDC = uitab('Parent', hTabGroupPlot, 'Title', 'DC Offset');
@@ -102,8 +107,8 @@ classdef Viewer < handle
             axDC = findobj(hFig,'tag', 'axDC');
             set(axDC,'Parent',hTabDC);
             hBar = bar(axDC,1:16,1:16);
-             xlabel(axDC,'Channel');
-             ylabel(axDC, 'DC Offset (uV)');
+            xlabel(axDC,'Channel');
+            ylabel(axDC, 'DC Offset (uV)');
             set(axDC,'YLim',[-yrange yrange]);
             
             
@@ -133,30 +138,12 @@ classdef Viewer < handle
             obj.V_DCs = mean(obj.EEG_packet,2);
             
             
-            %Check if filt/demod tick boxes are active
-            if (get(handles.Settings.chkFilter,'Value'))
-                
-                obj.EEG_packet = filtfilt(handles.filtercoeffs.b, handles.filtercoeffs.a, double(obj.EEG_packet));
-            end
-            
-            if (get(handles.Settings.chkDemod,'Value'))
-                obj.EEG_packet = abs(hilbert(obj.EEG_packet));
-            end
-            
             %Append EEG_packet to data buffer
             
             siz_EEG = size(obj.EEG_packet);
             obj.data_buf_dims = size(obj.data_buf);
             newdata_index = (obj.data_buf_dims(2)+1):(obj.data_buf_dims(2)+siz_EEG(2));
             obj.data_buf(:,newdata_index)=obj.EEG_packet;
-            
-            % If data buffer is longer than len_data_buf, reset buffer
-            % and display filt/demod data
-            obj.data_buf_dims = size(obj.data_buf);
-            if obj.data_buf_dims(2) > 1e6 * obj.len_data_buf / obj.props.samplingInterval
-                obj.data_buf = [];
-            end
-            
             
             %Only update graph for active tab
             active_tab = get(handles.tabGroup,'SelectedIndex');
@@ -167,10 +154,20 @@ classdef Viewer < handle
                 case 2
                     self.updateDCOffset(handles,obj)
             end
+            
+            % If data buffer is longer than len_data_buf, reset buffer
+            % and display filt/demod data
+            obj.data_buf_dims = size(obj.data_buf);
+            if obj.data_buf_dims(2) > 1e6 * obj.len_data_buf / obj.props.samplingInterval
+                obj.data_buf = [];
+                self.filt_buf = [];
+            end
+            
+            
+            
         end
         
         function updateEEGPlot(self,handles,obj)
-            %Update this to plot whichever channel(s) are selected
             
             obj.data_buf_dims = size(obj.data_buf);
             
@@ -180,6 +177,43 @@ classdef Viewer < handle
                 set(handles.tabPlotEEG.plotTime,'XData', (1:downsample:obj.data_buf_dims(2)).*1e-6.*obj.props.samplingInterval)
                 set(handles.tabPlotEEG.plotTime,'YData',obj.data_buf(self.chansToPlot,1:downsample:end))
             end
+            
+            %Check if filt/demod tick boxes are active
+            
+            filtOn = get(handles.Settings.chkFilter,'Value');
+            demodOn = get(handles.Settings.chkDemod,'Value');
+            
+            if (filtOn || demodOn)
+                
+                
+                nSamples = self.Fs*self.filtUpdateTime; %How many samples being used
+                if ~rem(obj.data_buf_dims(2),nSamples)
+                    len_filt_buf = size(self.filt_buf,2);
+                    
+                    
+                    data_to_plot = obj.data_buf(self.chansToPlot,(obj.data_buf_dims(2)-nSamples+1):obj.data_buf_dims(2));
+                    
+                    if filtOn
+                        data_to_plot = filtfilt(self.filtercoeffs.b,self.filtercoeffs.a,double(data_to_plot));
+                    end
+                    
+                    if demodOn
+                        data_to_plot = abs(hilbert(data_to_plot));
+                    end
+                    
+                    self.filt_buf(:,(len_filt_buf+1):(len_filt_buf+nSamples)) = data_to_plot;
+                    
+                    len_filt_buf = len_filt_buf+nSamples;
+                    
+                    if len_filt_buf
+                    set(handles.tabPlotEEG.plotFilt,'XData', (1:downsample:len_filt_buf)./obj.Fs);
+                    set(handles.tabPlotEEG.plotFilt,'YData',self.filt_buf(1:downsample:len_filt_buf));
+                    end
+                    
+                    
+                end
+            end
+            
         end
         
         
@@ -195,8 +229,8 @@ classdef Viewer < handle
         function onPropChange(self,handles,obj)
             % Populate list box with channel names
             set(handles.Settings.lstChannels,'String',obj.props.channelNames);
-            Fs = 1e6./obj.props.samplingInterval;
-            set(handles.Settings.lblFs,'String',['Fs: ' num2str(Fs) 'Hz']);
+            self.Fs = 1e6./obj.props.samplingInterval;
+            set(handles.Settings.lblFs,'String',['Fs: ' num2str(self.Fs) 'Hz']);
         end
         
     end
