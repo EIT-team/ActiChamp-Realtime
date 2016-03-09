@@ -10,11 +10,12 @@ classdef Viewer < handle
         Settings
         tabDC
         tabPlotEEG
+        tabNoise
         
         chansToPlot = 1     %Which channels to plot
         filtOrder = 1       %Filter order
-        filtFreq = 10       %Filter centre frequency
-        filtBW = 5          %Filter Bandwidth
+        filtFreq = 1000       %Filter centre frequency
+        filtBW = 500          %Filter Bandwidth
         Fs = 1e5            %EEG sampling frequency
         filtercoeffs
         filtUpdateTime = 1  %How often to calculate/display filt data
@@ -53,7 +54,7 @@ classdef Viewer < handle
             self.tabGroup = uitabgroup('Parent',hFig, 'Units', get(hPlotPanel,'Units'),'Position',get(hPlotPanel,'Position'));
             hTabPlotEEG = uitab('Parent', self.tabGroup, 'Title', 'EEG Plot');
             hTabDC = uitab('Parent', self.tabGroup, 'Title', 'DC Offset');
-            
+            hTabNoise = uitab('Parent', self.tabGroup, 'Title', 'Noise');
             
             %Create settings panel and populate with objects
             hSettingsPanel = findobj(hFig, 'tag' ,'settingsPanel');
@@ -117,6 +118,22 @@ classdef Viewer < handle
             %Put handles in structure
             self.tabDC = struct('tab',hTabDC, 'ax',axDC, 'bar',hBar);
             
+            
+            % Noise analysis tab *******************
+            
+            %Use same axes positions as on Time tab
+            axFreq = findobj(hFig,'tag','axFreq');
+            axNoise = findobj(hFig,'tag','axNoise');
+            
+            set(axFreq,'Parent',hTabNoise);
+            set(axNoise,'Parent',hTabNoise);
+            
+            hFreq = plot(axFreq,(1:10));
+            hNoise = plot(axNoise,(1:10));
+            
+            self.tabNoise = struct('tab',hTabNoise,'axFreq',axFreq,'axNoise',axNoise,...
+                'hFreq',hFreq, 'hNoise', hNoise);
+            %*********
             set(hFig,'Name','ActiChamp Client')
             % Move the GUI to the center of the screen.
             movegui(hFig,'center')
@@ -162,6 +179,8 @@ classdef Viewer < handle
                     self.updateEEGPlot(Acti)
                 case 2
                     self.updateDCOffset(Acti)
+                case 3
+                    self.updateNoise(Acti)
             end
             
             % If data buffer is longer than max_data_buf, reset buffer to
@@ -223,13 +242,39 @@ classdef Viewer < handle
         end
         
         
-        
         function updateDCOffset(self,Acti)
             % Update plot on DC offset tab
             % self - GUI shandles object
             % Acti - Actichamp object
             set(self.tabDC.bar,'YData',Acti.V_DCs);
         end
+        
+        
+        
+        function updateNoise(self,Acti)
+            % Update FFT/Pwelch & Noise plots
+            
+            %Update plot every second
+            Acti.data_buf_len = size(Acti.data_buf,2);
+            if Acti.data_buf_len > Acti.Fs
+                axes(self.tabNoise.axFreq)
+                pwelch(Acti.data_buf(self.chansToPlot,:),[],[],[],Acti.Fs)
+                
+%                 if ~self.filtercoeffs
+%                     
+%                     [self.filtercoeffs.b, self.filtercoeffs.a] = butter(...
+%                         self.filtOrder, (self.filtFreq + [-self.filtBW, self.filtBW])./(Acti.Fs./2));
+%                 end
+                
+                axes(self.tabNoise.axNoise)
+                 data = filtfilt(self.filtercoeffs.b,self.filtercoeffs.a,double(Acti.data_buf'));
+                 data = abs(hilbert(data));
+                 %Use 10%-90% of the data to exclude filter/demod ripples
+                image( cov(data(Acti.Fs/10:9*Acti.Fs/10,:))) 
+            end
+            
+        end
+        
         
         
         function onPropChange(self,Acti)
