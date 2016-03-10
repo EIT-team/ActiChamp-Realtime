@@ -10,12 +10,12 @@ classdef Viewer < handle
         Settings
         tabDC
         tabPlotEEG
+        tabNoise
         
         chansToPlot = 1     %Which channels to plot
         filtOrder = 1       %Filter order
-        filtFreq = 10       %Filter centre frequency
-        filtBW = 5          %Filter Bandwidth
-        Fs = 1e5            %EEG sampling frequency
+        filtFreq = 1000       %Filter centre frequency
+        filtBW = 500          %Filter Bandwidth
         filtercoeffs
         filtUpdateTime = 1  %How often to calculate/display filt data
         filt_buf = []
@@ -53,7 +53,7 @@ classdef Viewer < handle
             self.tabGroup = uitabgroup('Parent',hFig, 'Units', get(hPlotPanel,'Units'),'Position',get(hPlotPanel,'Position'));
             hTabPlotEEG = uitab('Parent', self.tabGroup, 'Title', 'EEG Plot');
             hTabDC = uitab('Parent', self.tabGroup, 'Title', 'DC Offset');
-            
+            hTabNoise = uitab('Parent', self.tabGroup, 'Title', 'Noise');
             
             %Create settings panel and populate with objects
             hSettingsPanel = findobj(hFig, 'tag' ,'settingsPanel');
@@ -117,6 +117,22 @@ classdef Viewer < handle
             %Put handles in structure
             self.tabDC = struct('tab',hTabDC, 'ax',axDC, 'bar',hBar);
             
+            
+            % Noise analysis tab *******************
+            
+            %Use same axes positions as on Time tab
+            axFreq = findobj(hFig,'tag','axFreq');
+            axNoise = findobj(hFig,'tag','axNoise');
+            
+            set(axFreq,'Parent',hTabNoise);
+            set(axNoise,'Parent',hTabNoise);
+            
+            hFreq = plot(axFreq,(1:10));
+            hNoise = plot(axNoise,(1:10));
+            
+            self.tabNoise = struct('tab',hTabNoise,'axFreq',axFreq,'axNoise',axNoise,...
+                'hFreq',hFreq, 'hNoise', hNoise);
+            %*********
             set(hFig,'Name','ActiChamp Client')
             % Move the GUI to the center of the screen.
             movegui(hFig,'center')
@@ -149,7 +165,7 @@ classdef Viewer < handle
             
             %Remove DC component from voltage, if Check Box activated.
             if (get(self.Settings.chkDC,'Value'))
-                DC_corr = repmat(Acti.V_DCs,1,siz_EEG(2));
+                DC_corr = repmat(Acti.V_DCs,1,Acti.len_packet);
                 Acti.data_buf(:,newdata_index)=Acti.EEG_packet - DC_corr;
             else
                 Acti.data_buf(:,newdata_index)=Acti.EEG_packet;
@@ -162,12 +178,13 @@ classdef Viewer < handle
                     self.updateEEGPlot(Acti)
                 case 2
                     self.updateDCOffset(Acti)
+                case 3
+                    self.updateNoise(Acti)
             end
             
             % If data buffer is longer than max_data_buf, reset buffer to
             % empty.
-            Acti.data_buf_len = size(Acti.data_buf,2);
-            if Acti.data_buf_len > 1e6 * Acti.max_data_buf / Acti.props.samplingInterval
+            if Acti.data_buf_len >  Acti.max_data_buf * Acti.Fs
                 Acti.data_buf = [];
                 self.filt_buf = [];
             end
@@ -192,7 +209,7 @@ classdef Viewer < handle
             
             if (filtOn || demodOn)
                 
-                nSamples = self.Fs*self.filtUpdateTime; %How many samples being used for filtering
+                nSamples = Acti.Fs*self.filtUpdateTime; %How many samples being used for filtering
                 
                 %Check if data buffer is at a multiple of nSamples, then plot data
                 if ~rem(Acti.data_buf_len,nSamples)
@@ -223,13 +240,48 @@ classdef Viewer < handle
         end
         
         
-        
         function updateDCOffset(self,Acti)
             % Update plot on DC offset tab
             % self - GUI shandles object
             % Acti - Actichamp object
             set(self.tabDC.bar,'YData',Acti.V_DCs);
         end
+        
+        
+        
+        function updateNoise(self,Acti)
+            % Update FFT/Pwelch & Noise plots
+            
+            %Update plot every second
+            if ~rem(Acti.data_buf_len,Acti.Fs)
+                axes(self.tabNoise.axFreq)
+                
+                %Calculate FFT
+                Y = fft(Acti.data_buf(self.chansToPlot,:));
+                P2 = abs(Y/Acti.data_buf_len);
+                P1 = P2(1:Acti.data_buf_len/2+1);
+                P1(2:end-1)=2*P1(2:end-1);
+                f = Acti.Fs *(0:(Acti.data_buf_len/2))/Acti.data_buf_len;
+                
+                semilogy(self.tabNoise.axFreq,f,P1)
+                
+                %Calculate injection frequency (whichever one has highest
+                %FFT value)
+                [~,max_ind] = max(P1);
+                Fc = (f(max_ind));
+                %Display Fc in title
+                set(self.tabNoise.axFreq,'Title', title(['Fc: ' num2str(Fc) 'Hz']));
+
+    
+                axes(self.tabNoise.axNoise)
+                data = filtfilt(self.filtercoeffs.b,self.filtercoeffs.a,double(Acti.data_buf'));
+                data = abs(hilbert(data));
+                %Use 10%-90% of the data to exclude filter/demod ripples
+                imagesc( cov(data(Acti.Fs/10:9*Acti.Fs/10,:)))
+            end
+            
+        end
+        
         
         
         function onPropChange(self,Acti)
@@ -239,8 +291,8 @@ classdef Viewer < handle
             
             % Populate list box with channel names
             set(self.Settings.lstChannels,'String',Acti.props.channelNames);
-            self.Fs = 1e6./Acti.props.samplingInterval;
-            set(self.Settings.lblFs,'String',['Fs: ' num2str(self.Fs) 'Hz']);
+            Acti.Fs = 1e6./Acti.props.samplingInterval;
+            set(self.Settings.lblFs,'String',['Fs: ' num2str(Acti.Fs) 'Hz']);
         end
         
     end

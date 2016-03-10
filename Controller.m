@@ -3,6 +3,10 @@ function Controller
 % Sets up callbacks for GUI elements
 % Tom Dowrick 8.3.2016
 
+%Suppress warnings
+warning('off','MATLAB:colon:nonIntegerIndex') %Non-integer indexes used on Noise tab
+warning('off','MATLAB:uitabgroup:OldVersion') %uitabgroup command is depricated
+
 clear all
 
 Acti = ActiChamp;
@@ -14,6 +18,7 @@ set(handles.Settings.btConnect,'Callback',{@onConnect,Acti});
 set(handles.Settings.lstChannels,'Callback',{@onChannelSelect,handles});
 set(handles.Settings.Time,'Callback',{@onTimeChange,Acti,handles});
 set(handles.Settings.Range,'Callback',{@onRangeChange,handles});
+set(handles.Settings.HostIP,'Callback',{@onNewIP,Acti});
 
 %Callbacks for updating filter if any coefficents changed
 set(handles.Settings.chkFilter,'Callback',{@initFilter,Acti,handles});
@@ -22,6 +27,10 @@ set(handles.Settings.FiltBW,'Callback',{@initFilter,Acti,handles});
 set(handles.Settings.FiltOrder,'Callback',{@initFilter,Acti,handles});
 
 set(handles.Settings.FiltUpdateTime,'Callback',{@updateFiltTime,handles});
+
+
+initFilter([],[],Acti,handles)  %Set filter to initial values
+
 
 end
 
@@ -101,6 +110,10 @@ if (Time)
     set(h.tabPlotEEG.axFilt,'XLim',[0 Time])
 end
 
+end
+
+function onNewIP(self,eventdata,Acti)
+Acti.IP = get(self,'String');
 end
 
 function initFilter(self,eventdata,Acti,h)
