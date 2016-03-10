@@ -263,8 +263,8 @@ classdef Viewer < handle
                 P1(2:end-1)=2*P1(2:end-1);
                 f = Acti.Fs *(0:(Acti.data_buf_len/2))/Acti.data_buf_len;
                 
-                semilogy(self.tabNoise.axFreq,f,P1)
-                
+                plot(self.tabNoise.axFreq,f,20*log10(P1))
+                xlim([0 1000])
                 %Calculate injection frequency (whichever one has highest
                 %FFT value)
                 [~,max_ind] = max(P1);
@@ -278,6 +278,7 @@ classdef Viewer < handle
                 data = abs(hilbert(data));
                 %Use 10%-90% of the data to exclude filter/demod ripples
                 imagesc( cov(data(Acti.Fs/10:9*Acti.Fs/10,:)))
+                colorbar
             end
             
         end

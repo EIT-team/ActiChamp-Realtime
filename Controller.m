@@ -113,7 +113,7 @@ end
 end
 
 function onNewIP(self,eventdata,Acti)
-Acti.IP = get(self,'String');
+Acti.ip = get(self,'String');
 end
 
 function initFilter(self,eventdata,Acti,h)
