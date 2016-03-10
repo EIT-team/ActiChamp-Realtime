@@ -3,8 +3,9 @@ classdef ActiChamp < handle
     % Tom Dowrick 8.3.2016
     % Mostly based on code provided by ActiChamp
     properties (SetObservable = true)
+        
         %Use these to trigger listeners to update GUI elements
-        EEG_packet = []     %Single packet of EEG data in 'samples x channels' format  
+        EEG_packet = []     %Single packet of EEG data in 'samples x channels' format
         channelNames = []
     end
     
@@ -16,7 +17,7 @@ classdef ActiChamp < handle
         finish = 0          %Data collection completed
         hdr                 %Message header
         datahdr             %Data block headers
-        data_buf            %data buffer          
+        data_buf            %data buffer
         data                %Block of data
         max_data_buf = 1    %How much data to buffer (in seconds)
         markers             %Markers/triggers
@@ -30,10 +31,10 @@ classdef ActiChamp < handle
         
     end
     
-
+    
     
     methods
-
+        
         function Connect(self)
             % Create TCP connection to EEG amp
             self.con = pnet('tcpconnect', self.ip, self.port);
@@ -56,7 +57,7 @@ classdef ActiChamp < handle
             self.hdr.uid = pnet(self.con,'read', 16);
             self.hdr.size = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
             self.hdr.type = swapbytes(pnet(self.con,'read', 1, 'uint32', 'network'));
-
+            
         end
         
         function ReadStartMessage(self)
@@ -147,7 +148,7 @@ classdef ActiChamp < handle
             
         end
         
-       
+        
         function GetDataBlock(self)
             % Read data from EEG until a data packet is received
             %

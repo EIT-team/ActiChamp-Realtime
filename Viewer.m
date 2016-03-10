@@ -16,7 +16,6 @@ classdef Viewer < handle
         filtOrder = 1       %Filter order
         filtFreq = 1000       %Filter centre frequency
         filtBW = 500          %Filter Bandwidth
-        Fs = 1e5            %EEG sampling frequency
         filtercoeffs
         filtUpdateTime = 1  %How often to calculate/display filt data
         filt_buf = []
@@ -166,7 +165,7 @@ classdef Viewer < handle
             
             %Remove DC component from voltage, if Check Box activated.
             if (get(self.Settings.chkDC,'Value'))
-                DC_corr = repmat(Acti.V_DCs,1,siz_EEG(2));
+                DC_corr = repmat(Acti.V_DCs,1,Acti.len_packet);
                 Acti.data_buf(:,newdata_index)=Acti.EEG_packet - DC_corr;
             else
                 Acti.data_buf(:,newdata_index)=Acti.EEG_packet;
@@ -185,8 +184,7 @@ classdef Viewer < handle
             
             % If data buffer is longer than max_data_buf, reset buffer to
             % empty.
-            Acti.data_buf_len = size(Acti.data_buf,2);
-            if Acti.data_buf_len > 1e6 * Acti.max_data_buf / Acti.props.samplingInterval
+            if Acti.data_buf_len >  Acti.max_data_buf * Acti.Fs
                 Acti.data_buf = [];
                 self.filt_buf = [];
             end
@@ -211,7 +209,7 @@ classdef Viewer < handle
             
             if (filtOn || demodOn)
                 
-                nSamples = self.Fs*self.filtUpdateTime; %How many samples being used for filtering
+                nSamples = Acti.Fs*self.filtUpdateTime; %How many samples being used for filtering
                 
                 %Check if data buffer is at a multiple of nSamples, then plot data
                 if ~rem(Acti.data_buf_len,nSamples)
@@ -255,23 +253,15 @@ classdef Viewer < handle
             % Update FFT/Pwelch & Noise plots
             
             %Update plot every second
-            Acti.data_buf_len = size(Acti.data_buf,2);
-            if Acti.data_buf_len > Acti.Fs
+            if ~rem(Acti.data_buf_len,Acti.Fs)
                 axes(self.tabNoise.axFreq)
                 pwelch(Acti.data_buf(self.chansToPlot,:),[],[],[],Acti.Fs)
                 
-                
-%                  if ~exist(self.filtercoeffs)
-%                      
-%                      [self.filtercoeffs.b, self.filtercoeffs.a] = butter(...
-%                          self.filtOrder, (self.filtFreq + [-self.filtBW, self.filtBW])./(Acti.Fs./2));
-%                  end
-%                 
                 axes(self.tabNoise.axNoise)
-                 data = filtfilt(self.filtercoeffs.b,self.filtercoeffs.a,double(Acti.data_buf'));
-                 data = abs(hilbert(data));
-                 %Use 10%-90% of the data to exclude filter/demod ripples
-                image( cov(data(Acti.Fs/10:9*Acti.Fs/10,:))) 
+                data = filtfilt(self.filtercoeffs.b,self.filtercoeffs.a,double(Acti.data_buf'));
+                data = abs(hilbert(data));
+                %Use 10%-90% of the data to exclude filter/demod ripples
+                imagesc( cov(data(Acti.Fs/10:9*Acti.Fs/10,:)))
             end
             
         end
@@ -285,8 +275,8 @@ classdef Viewer < handle
             
             % Populate list box with channel names
             set(self.Settings.lstChannels,'String',Acti.props.channelNames);
-            self.Fs = 1e6./Acti.props.samplingInterval;
-            set(self.Settings.lblFs,'String',['Fs: ' num2str(self.Fs) 'Hz']);
+            Acti.Fs = 1e6./Acti.props.samplingInterval;
+            set(self.Settings.lblFs,'String',['Fs: ' num2str(Acti.Fs) 'Hz']);
         end
         
     end

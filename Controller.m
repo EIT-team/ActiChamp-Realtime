@@ -29,8 +29,9 @@ set(handles.Settings.FiltOrder,'Callback',{@initFilter,Acti,handles});
 set(handles.Settings.FiltUpdateTime,'Callback',{@updateFiltTime,handles});
 
 
-%Set filter to initial values
-initFilter([],[],Acti,handles)
+initFilter([],[],Acti,handles)  %Set filter to initial values
+
+
 end
 
 function onWindowClose(self,eventdata,Acti)
