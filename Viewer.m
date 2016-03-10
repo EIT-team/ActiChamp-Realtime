@@ -255,8 +255,24 @@ classdef Viewer < handle
             %Update plot every second
             if ~rem(Acti.data_buf_len,Acti.Fs)
                 axes(self.tabNoise.axFreq)
-                pwelch(Acti.data_buf(self.chansToPlot,:),[],[],[],Acti.Fs)
                 
+                %Calculate FFT
+                Y = fft(Acti.data_buf(self.chansToPlot,:));
+                P2 = abs(Y/Acti.data_buf_len);
+                P1 = P2(1:Acti.data_buf_len/2+1);
+                P1(2:end-1)=2*P1(2:end-1);
+                f = Acti.Fs *(0:(Acti.data_buf_len/2))/Acti.data_buf_len;
+                
+                semilogy(self.tabNoise.axFreq,f,P1)
+                
+                %Calculate injection frequency (whichever one has highest
+                %FFT value)
+                [~,max_ind] = max(P1);
+                Fc = (f(max_ind));
+                %Display Fc in title
+                set(self.tabNoise.axFreq,'Title', title(['Fc: ' num2str(Fc) 'Hz']));
+
+    
                 axes(self.tabNoise.axNoise)
                 data = filtfilt(self.filtercoeffs.b,self.filtercoeffs.a,double(Acti.data_buf'));
                 data = abs(hilbert(data));
