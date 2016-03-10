@@ -260,12 +260,13 @@ classdef Viewer < handle
                 axes(self.tabNoise.axFreq)
                 pwelch(Acti.data_buf(self.chansToPlot,:),[],[],[],Acti.Fs)
                 
-%                 if ~self.filtercoeffs
-%                     
-%                     [self.filtercoeffs.b, self.filtercoeffs.a] = butter(...
-%                         self.filtOrder, (self.filtFreq + [-self.filtBW, self.filtBW])./(Acti.Fs./2));
-%                 end
                 
+%                  if ~exist(self.filtercoeffs)
+%                      
+%                      [self.filtercoeffs.b, self.filtercoeffs.a] = butter(...
+%                          self.filtOrder, (self.filtFreq + [-self.filtBW, self.filtBW])./(Acti.Fs./2));
+%                  end
+%                 
                 axes(self.tabNoise.axNoise)
                  data = filtfilt(self.filtercoeffs.b,self.filtercoeffs.a,double(Acti.data_buf'));
                  data = abs(hilbert(data));

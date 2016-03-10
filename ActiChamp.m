@@ -13,7 +13,7 @@ classdef ActiChamp < handle
         con                 %TCP connection
         port = 51244        %Port for 32-bit data on ActiChamp
         header_size = 24    %Data packet header size
-        finish = 0;         %Data collection completed
+        finish = 0          %Data collection completed
         hdr                 %Message header
         datahdr             %Data block headers
         data_buf            %data buffer          
@@ -24,7 +24,7 @@ classdef ActiChamp < handle
         lastBlock   = -1        %Index of most recently read data block
         print_markers = 0   %Set to 1 to print marker/trigger info to console
         props            %EEG properties (sampling rate etc)
-        Fs
+        Fs = 1E5;          %Sampling rate
         V_DCs
         len_packet          %length of EEG packet (in samples)
         
