@@ -78,6 +78,7 @@ classdef Viewer < handle
             lblFs = findobj(hFig,'tag','lblFs');
             lblFiltUpdate = findobj(hFig,'tag','lblFiltUpdate');
             editFiltUpdate = findobj(hFig,'tag','editFiltUpdate');
+
             
             %Create structure of handles
             self.Settings = struct(  'HostIP',editHostIP, 'btConnect',btConnect, 'Range',editRange,...
@@ -125,13 +126,26 @@ classdef Viewer < handle
             axNoise = findobj(hFig,'tag','axNoise');
             
             set(axFreq,'Parent',hTabNoise);
+
             set(axNoise,'Parent',hTabNoise);
             
-            hFreq = plot(axFreq,(1:10));
+            %Create initial plot
+            lblFRange = findobj(hFig,'tag','lblFRange');
+            editFMin = findobj(hFig,'tag','editFMin');
+            editFMax = findobj(hFig,'tag','editFMax');
+            
+            set(editFMin,'Parent',hTabNoise);
+            set(editFMax,'Parent',hTabNoise);
+            set(lblFRange,'Parent',hTabNoise);
+            
+            %Do initial placeholder plot for FFT
+            hFreq = semilogy(axFreq,(1:10));
             hNoise = plot(axNoise,(1:10));
+            xlabel(axFreq,'Frequency (kHz)')
+
             
             self.tabNoise = struct('tab',hTabNoise,'axFreq',axFreq,'axNoise',axNoise,...
-                'hFreq',hFreq, 'hNoise', hNoise);
+                'PlotFreq',hFreq, 'PlotNoise', hNoise, 'FreqMin',editFMin, 'FreqMax',editFMax);
             %*********
             set(hFig,'Name','ActiChamp Client')
             % Move the GUI to the center of the screen.
@@ -263,7 +277,10 @@ classdef Viewer < handle
                 P1(2:end-1)=2*P1(2:end-1);
                 f = Acti.Fs *(0:(Acti.data_buf_len/2))/Acti.data_buf_len;
                 
-                semilogy(self.tabNoise.axFreq,f,P1)
+                %semilogy(self.tabNoise.axFreq,f,P1)
+                
+                set(self.tabNoise.PlotFreq,'XData', f/1000) %Time steps
+                set(self.tabNoise.PlotFreq,'YData',P1)
                 
                 %Calculate injection frequency (whichever one has highest
                 %FFT value)

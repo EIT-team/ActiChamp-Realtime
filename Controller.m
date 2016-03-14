@@ -25,8 +25,11 @@ set(handles.Settings.chkFilter,'Callback',{@initFilter,Acti,handles});
 set(handles.Settings.FiltFreq,'Callback',{@initFilter,Acti,handles});
 set(handles.Settings.FiltBW,'Callback',{@initFilter,Acti,handles});
 set(handles.Settings.FiltOrder,'Callback',{@initFilter,Acti,handles});
-
 set(handles.Settings.FiltUpdateTime,'Callback',{@updateFiltTime,handles});
+
+%Callback for noise analysis tab
+set(handles.tabNoise.FreqMin,'Callback',{@setRangeFFT,handles});
+set(handles.tabNoise.FreqMax,'Callback',{@setRangeFFT,handles});
 
 
 initFilter([],[],Acti,handles)  %Set filter to initial values
@@ -146,4 +149,19 @@ if (Time)
     h.filtUpdateTime = Time;
 end
 
+end
+
+function setRangeFFT(self,eventdata,h)
+% Sets the x-axis limits for FFT plot
+% self - object triggering callback
+% h - handles of figure objects
+
+%Get F values in kHz
+FMin = str2num(get(h.tabNoise.FreqMin,'String'))/1000;
+FMax = str2num(get(h.tabNoise.FreqMax,'String'))/1000;
+
+%Check if F values are valid
+if (isnumeric([FMin FMax]) && FMax > FMin)
+    set(h.tabNoise.axFreq,'XLim',[FMin FMax]);
+end
 end

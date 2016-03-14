@@ -22,7 +22,7 @@ function varargout = fig_layout(varargin)
 
 % Edit the above text to modify the response to help fig_layout
 
-% Last Modified by GUIDE v2.5 08-Mar-2016 14:14:50
+% Last Modified by GUIDE v2.5 14-Mar-2016 10:49:45
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -289,3 +289,49 @@ function chkDC_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of chkDC
+
+
+
+function editFMin_Callback(hObject, eventdata, handles)
+% hObject    handle to editFMin (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editFMin as text
+%        str2double(get(hObject,'String')) returns contents of editFMin as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function editFMin_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editFMin (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function editFMax_Callback(hObject, eventdata, handles)
+% hObject    handle to editFMax (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editFMax as text
+%        str2double(get(hObject,'String')) returns contents of editFMax as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function editFMax_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editFMax (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
