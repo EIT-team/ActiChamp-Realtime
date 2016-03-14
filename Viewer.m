@@ -19,7 +19,7 @@ classdef Viewer < handle
         filtercoeffs
         filtUpdateTime = 1  %How often to calculate/display filt data
         filt_buf = []
-        downsample = 50     %Downsample data for plotting by this factor
+        downsample = 50     %how much to downsample data for plotting
         
     end
     
