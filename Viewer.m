@@ -222,11 +222,11 @@ classdef Viewer < handle
             demodOn = get(self.Settings.chkDemod,'Value');
             
             if (filtOn || demodOn)
-                
                 nSamples = Acti.Fs*self.filtUpdateTime; %How many samples being used for filtering
                 
                 %Check if data buffer is at a multiple of nSamples, then plot data
                 if ~rem(Acti.data_buf_len,nSamples)
+                
                     len_filt_buf = size(self.filt_buf,2);
                     filt_data = Acti.data_buf(self.chansToPlot,(Acti.data_buf_len-nSamples+1):Acti.data_buf_len);
                     
@@ -235,10 +235,14 @@ classdef Viewer < handle
                     end
                     
                     if demodOn %Do demodulation
+
                         filt_data = abs(hilbert(filt_data));
                     end
                     
-                    new_len = len_filt_buf+nSamples; %Update buffer length
+                    %Update buffer length
+                    %Cast to int32 to avoid bug with subscript index
+                    %mismatch
+                    new_len = int32(len_filt_buf+nSamples);
                     self.filt_buf(:,(len_filt_buf+1):new_len) = filt_data; %Append new data
                     len_filt_buf = new_len;
                     
