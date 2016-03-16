@@ -14,7 +14,7 @@ handles = Viewer(Acti);
 
 %Create callbacks for buttons, text boxes etc
 set(handles.fig,'CloseRequestFcn',{@onWindowClose,Acti});
-set(handles.Settings.btConnect,'Callback',{@onConnect,Acti});
+set(handles.Settings.btnConnect,'Callback',{@onConnect,Acti});
 set(handles.Settings.lstChannels,'Callback',{@onChannelSelect,handles});
 set(handles.Settings.Time,'Callback',{@onTimeChange,Acti,handles});
 set(handles.Settings.Range,'Callback',{@onRangeChange,handles});
@@ -33,6 +33,9 @@ set(handles.tabNoise.FreqMax,'Callback',{@setRangeFFT,handles});
 
 
 initFilter([],[],Acti,handles)  %Set filter to initial values
+
+%Callback for 'Save Data' button
+set(handles.Settings.btnSave,'Callback',{@saveData,Acti,handles});
 
 
 end
@@ -164,4 +167,18 @@ FMax = str2num(get(h.tabNoise.FreqMax,'String'))/1000;
 if (isnumeric([FMin FMax]) && FMax > FMin)
     set(h.tabNoise.axFreq,'XLim',[FMin FMax]);
 end
+end
+
+function saveData(self,eventdata,Acti,h)
+% Sets flag to save data. Data will be saved upon data buffer being filled.
+text = get(self,'String');
+
+if strcmp(text,'Save Data')
+    
+       
+    %Set save data flag
+    h.saveFlag = 1;
+    
+   set (self, 'String','Waiting...');
+   end
 end

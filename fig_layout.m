@@ -22,7 +22,7 @@ function varargout = fig_layout(varargin)
 
 % Edit the above text to modify the response to help fig_layout
 
-% Last Modified by GUIDE v2.5 14-Mar-2016 10:49:45
+% Last Modified by GUIDE v2.5 16-Mar-2016 14:20:05
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -335,3 +335,17 @@ function editFMax_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in pushbutton3.
+function pushbutton3_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in btnSave.
+function btnSave_Callback(hObject, eventdata, handles)
+% hObject    handle to btnSave (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)

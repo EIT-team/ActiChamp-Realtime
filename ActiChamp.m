@@ -241,6 +241,7 @@ classdef ActiChamp < handle
         end
         
         function Close(self)
+            self.finish = 1;
             % Close all open socket connections
             pnet('closeall');
             self.con = [];

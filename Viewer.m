@@ -20,6 +20,8 @@ classdef Viewer < handle
         filtUpdateTime = 1  %How often to calculate/display filt data
         filt_buf = []
         downsample = 50     %how much to downsample data for plotting
+        saveFolder = []    % save data buffer and figures to this dir
+        saveFlag = 0        % save when this is set to 1
         
     end
     
@@ -60,7 +62,7 @@ classdef Viewer < handle
             
             lblHost =  findobj(hFig, 'tag' , 'lblHost');
             editHostIP =  findobj(hFig, 'tag' , 'editHostIP');
-            btConnect =  findobj(hFig, 'tag' , 'btConnect');
+            btnConnect =  findobj(hFig, 'tag' , 'btConnect');
             lblRange =  findobj(hFig, 'tag' , 'lblRange');
             editRange =  findobj(hFig, 'tag' , 'editRange');
             chanSelect =  findobj(hFig, 'tag' , 'lstChannels');
@@ -78,13 +80,13 @@ classdef Viewer < handle
             lblFs = findobj(hFig,'tag','lblFs');
             lblFiltUpdate = findobj(hFig,'tag','lblFiltUpdate');
             editFiltUpdate = findobj(hFig,'tag','editFiltUpdate');
-
+            btnSave =findobj(hFig,'tag','btnSave');
             
             %Create structure of handles
-            self.Settings = struct(  'HostIP',editHostIP, 'btConnect',btConnect, 'Range',editRange,...
+            self.Settings = struct(  'HostIP',editHostIP, 'btnConnect',btnConnect, 'Range',editRange,...
                 'lstChannels',chanSelect,'Time',editTime,'chkFilter',chkFilter, 'chkDemod',chkDemod,...
                 'FiltOrder',popFiltOrder','FiltFreq',editFiltFreq, 'FiltBW',editFiltBW, 'lblFs',lblFs,...
-                'FiltUpdateTime',editFiltUpdate, 'chkDC',chkDC);
+                'FiltUpdateTime',editFiltUpdate, 'chkDC',chkDC, 'btnSave',btnSave);
             
             % Construct the axes to display time and frequency domain data
             % Axes are defined as children of panel object in GUIDE, need to change
@@ -198,9 +200,23 @@ classdef Viewer < handle
             
             % If data buffer is longer than max_data_buf, reset buffer to
             % empty.
+            % If Acti.saveFlag set to 1, save data buffer and figures
             if Acti.data_buf_len >  Acti.max_data_buf * Acti.Fs
+                
+                %If a valid save folder has been specified, save data
+                if self.saveFlag
+                    
+                    Acti.Close();
+                    self.saveData(Acti);
+                    self.saveFlag = 0;
+                    
+                    set(self.Settings.btnConnect,'String','Connect');
+                    
+                end
+                
                 Acti.data_buf = [];
                 self.filt_buf = [];
+                
             end
             
         end
@@ -257,15 +273,12 @@ classdef Viewer < handle
             
         end
         
-        
         function updateDCOffset(self,Acti)
             % Update plot on DC offset tab
             % self - GUI shandles object
             % Acti - Actichamp object
             set(self.tabDC.bar,'YData',Acti.V_DCs);
         end
-        
-        
         
         function updateNoise(self,Acti)
             % Update FFT/Pwelch & Noise plots
@@ -289,7 +302,7 @@ classdef Viewer < handle
                 %Calculate injection frequency (whichever one has highest
                 %FFT value)
                 [~,max_ind] = max(P1);
-                Fc = (f(max_ind));
+                Fc = round(f(max_ind));
                 %Display Fc in title
                 set(self.tabNoise.axFreq,'Title', title(['Fc: ' num2str(Fc) 'Hz']));
 
@@ -303,8 +316,6 @@ classdef Viewer < handle
             
         end
         
-        
-        
         function onPropChange(self,Acti)
             % Update EEG properties and channel names in listbox
             % self - GUI handles object
@@ -316,6 +327,47 @@ classdef Viewer < handle
             set(self.Settings.lblFs,'String',['Fs: ' num2str(Acti.Fs) 'Hz']);
         end
         
+        function saveData(self,Acti)
+           % Saves data buffer and figures
+           % Save location specified by self.saveFolder
+           % Method of saving figures is a bit sketchy, don't yet have a better way
+           % to do it.
+           self.saveFolder= uigetdir('.','Select Save Folder');
+
+           save([self.saveFolder '\Time-series-data.mat'],'Acti');
+           
+           %Update figures,switch to appropriate tab and save
+           self.updateEEGPlot(Acti)
+           set(self.tabGroup,'SelectedIndex',1);
+           self.save_fig(self.fig, [self.saveFolder '\EEGPlot.png'])
+           
+           self.updateDCOffset(Acti)
+           set(self.tabGroup,'SelectedIndex',2);
+           self.save_fig(self.fig, [self.saveFolder '\DCPlot.png'])
+           
+           
+           self.updateNoise(Acti)
+           set(self.tabGroup,'SelectedIndex',3);
+           self.save_fig(self.fig, [self.saveFolder '\NoisePlot.png'])
+           
+           %Clear saveFolder, so that data will not be saved again.
+         
+           
+           %Reset button text
+           set(self.Settings.btnSave,'String','Save Data');
+
+
+        end
+        
+        function save_fig(self,fig,file)
+            %Saves figure to specified location
+            %Bug with multiple monitors - figure must be on same screen as
+            %MATLAB console
+            
+           F = getframe(fig);
+           Image = frame2im(F);
+           imwrite(Image,file);
+        end
     end
     
 end
