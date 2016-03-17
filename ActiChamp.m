@@ -228,11 +228,22 @@ classdef ActiChamp < handle
         end
         
         function Go(self)
+            %Continuously read data from EEG, until self.finish is set to 1
+            %which is done by callbacks in the viewer class.
             self.finish = 0;
             self.lastBlock = -1;
             while ~self.finish
                 % Get Block of data and append to data buffer
                 self.GetDataBlock()
+                
+            %Append EEG_packet to data buffer by appending data to end
+            %This is the faster way (I know of) to do this.
+            self.data_buf_len = size(self.data_buf,2);
+            new_len = self.data_buf_len+self.len_packet;
+            newdata_index = (self.data_buf_len+1):new_len;
+            self.data_buf(:,newdata_index)=self.EEG_packet;
+            self.data_buf_len = new_len;
+
                 
             end
             disp('Finished')

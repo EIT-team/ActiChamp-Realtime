@@ -164,24 +164,14 @@ classdef Viewer < handle
         
         function onNewData(self,Acti)
             % Update plots whenever new data is read from EEG amp
-            % Adds new data to buffer and calls appropriate plotting
+            % calls appropriate plotting
             % function
             % self - GUI shandles object
             % Acti - Actichamp object
             
             %Update DC offsets
             Acti.V_DCs = mean(Acti.EEG_packet,2);
-            
-            %Append EEG_packet to data buffer by appending data to end
-            %This is the faster way (I know of) to do this.
-            Acti.data_buf_len = size(Acti.data_buf,2);
-            new_len = Acti.data_buf_len+Acti.len_packet;
-            newdata_index = (Acti.data_buf_len+1):new_len;
-            Acti.data_buf(:,newdata_index)=Acti.EEG_packet;
-            Acti.data_buf_len = new_len;
-
-
-            
+                      
             %Run plot update for active tab
             active_tab = get(self.tabGroup,'SelectedIndex');
             switch active_tab
