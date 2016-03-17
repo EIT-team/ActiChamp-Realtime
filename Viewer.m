@@ -177,15 +177,10 @@ classdef Viewer < handle
             Acti.data_buf_len = size(Acti.data_buf,2);
             new_len = Acti.data_buf_len+Acti.len_packet;
             newdata_index = (Acti.data_buf_len+1):new_len;
+            Acti.data_buf(:,newdata_index)=Acti.EEG_packet;
             Acti.data_buf_len = new_len;
-            
-            %Remove DC component from voltage, if Check Box activated.
-            if (get(self.Settings.chkDC,'Value'))
-                DC_corr = repmat(Acti.V_DCs,1,Acti.len_packet);
-                Acti.data_buf(:,newdata_index)=Acti.EEG_packet - DC_corr;
-            else
-                Acti.data_buf(:,newdata_index)=Acti.EEG_packet;
-            end
+
+
             
             %Run plot update for active tab
             active_tab = get(self.tabGroup,'SelectedIndex');
@@ -225,6 +220,14 @@ classdef Viewer < handle
             % Update plots on EEG Plot tab
             % self - GUI handles object
             % Acti - Actichamp object
+            
+            %Remove DC component if check box is active
+            if (get(self.Settings.chkDC,'Value'))
+                DC_corr = repmat(Acti.V_DCs,1,Acti.len_packet);
+                 Acti.data_buf(:,(Acti.data_buf_len-Acti.len_packet+1):Acti.data_buf_len)=...
+                   Acti.data_buf(:,(Acti.data_buf_len-Acti.len_packet+1):Acti.data_buf_len) - DC_corr;
+                
+            end
             
             if (Acti.data_buf_len) %Don't try to plot if empty
                 i = 1:self.downsample:Acti.data_buf_len; %indices to plot
