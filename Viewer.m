@@ -300,11 +300,11 @@ classdef Viewer < handle
                 set(self.tabNoise.axFreq,'Title', title(['Fc: ' num2str(Fc) 'Hz']));
 
     
-                axes(self.tabNoise.axNoise)
-                data = filtfilt(self.filtercoeffs.b,self.filtercoeffs.a,double(Acti.data_buf'));
-                data = abs(hilbert(data));
-                %Use 10%-90% of the data to exclude filter/demod ripples
-                imagesc( cov(data(Acti.Fs/10:9*Acti.Fs/10,:)))
+%                 axes(self.tabNoise.axNoise)
+%                 data = filtfilt(self.filtercoeffs.b,self.filtercoeffs.a,double(Acti.data_buf'));
+%                 data = abs(hilbert(data));
+%                 %Use 10%-90% of the data to exclude filter/demod ripples
+%                 imagesc( cov(data(Acti.Fs/10:9*Acti.Fs/10,:)))
             end
             
         end

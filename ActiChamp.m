@@ -1,7 +1,7 @@
 classdef ActiChamp < handle
     % Class definition for ActiChamp Object
     % Tom Dowrick 8.3.2016
-    % Mostly based on code provided by ActiChamp
+    % Based in part on code provided by ActiChamp
     properties (SetObservable = true)
         
         %Use these to trigger listeners to update GUI elements
@@ -156,11 +156,7 @@ classdef ActiChamp < handle
             
             %             disp(self.lastBlock)
             packet_read = 0;
-            %Open TCP connection
-            if isempty(self.con)
-                self.Connect()
-            end
-            
+           
             while ~packet_read % Main loop
                 try
                     % check for existing data in socket buffer
@@ -227,29 +223,63 @@ classdef ActiChamp < handle
             
         end
         
-        function Go(self)
+        function Go(self,secsOfDataToRead)
             %Continuously read data from EEG, until self.finish is set to 1
-            %which is done by callbacks in the viewer class.
+            %which is done by callbacks in the viewer class, OR read a specified
+            % amount of data, as defined by secsOfDataToRead.
+            % Inputs:
+            % self - Actichamp object
+            % secsOfDataToRead - how much data to read from EEG in seconds
+           
+            %If secsOfDataToRead not specified, set to false so that we run
+            %in continuous acquisiton mode. Otherwise set buffer length.
+            if nargin < 2
+                secsOfDataToRead = false;
+            else
+                self.max_data_buf = secsOfDataToRead;
+
+            end
+            
+            %Open TCP connection
+            if isempty(self.con)
+                self.Connect()
+            end
+                
             self.finish = 0;
             self.lastBlock = -1;
+
+            
             while ~self.finish
                 % Get Block of data and append to data buffer
                 self.GetDataBlock()
                 
-            %Append EEG_packet to data buffer by appending data to end
-            %This is the faster way (I know of) to do this.
-            self.data_buf_len = size(self.data_buf,2);
-            new_len = self.data_buf_len+self.len_packet;
-            newdata_index = (self.data_buf_len+1):new_len;
-            self.data_buf(:,newdata_index)=self.EEG_packet;
-            self.data_buf_len = new_len;
-
+                %Append EEG_packet to data buffer by appending data to end
+                %This is the faster way (I know of) to do this.
+                self.data_buf_len = size(self.data_buf,2);
+                new_len = self.data_buf_len+self.len_packet;
+                newdata_index = (self.data_buf_len+1):new_len;
+                self.data_buf(:,newdata_index)=self.EEG_packet;
+                self.data_buf_len = new_len;
+                
+                %Check if buffer is 'full' (Based on value set for buffer
+                %length). If running in continous mode, empty buffer,
+                %otherwise enough data has been collected, so stop.
+                if self.data_buf_len >  self.max_data_buf * self.Fs
+                    if secsOfDataToRead
+                        self.finish = 1;
+                    else
+                        self.data_buf = [];
+%                         self.filt_buf = [];
+                    end
+                end
                 
             end
-            disp('Finished')
-            
-            self.Close()
+        
+        disp('Finished')
+        self.Close()
+        
         end
+    
         
         function Close(self)
             self.finish = 1;
