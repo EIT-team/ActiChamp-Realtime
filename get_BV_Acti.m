@@ -3,7 +3,7 @@ function [BV0 X1] = get_BV (Data,EEG,Filt,Freqs,Prt)
 elec = 1:EEG.props.channelCount;
 N_prt = size(Prt,1);
 
-for i = 1:size(Freqs)
+for i = 1:max(size(Freqs))
     
     Fc = Freqs(i);
     

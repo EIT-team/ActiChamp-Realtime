@@ -12,7 +12,7 @@ load('D:\Documents\Experimental Data\SA060-elecs.mat');
 %Convert to 'simple' mesh that can be used in MATLAB scatter plots
 
 
-[mesh_simple, centre_inds] = cylindrical_tank_mesh_simplify(Mesh, 1);
+[mesh_simple, centre_inds] = cylindrical_tank_mesh_simplify(Mesh, 5);
 
 %Use only the mesh elements that are close to 0 on the z axis to reduce
 %number of elements and improve computation time later.
@@ -35,7 +35,7 @@ plot_text = text(   0.8,0.9,'Time','Units','normalized',...
                     'FontSize',16,'FontName','Times New Roman')
 
 % Create interpolation function - works 3-4x faster than using meshgrid()                 
-F_interp = TriScatteredInterp(mesh_simple(:,1),mesh_simple(:,2),X+10*rand(size(X)));
+F_interp = TriScatteredInterp(mesh_simple(:,1),mesh_simple(:,2),mesh_simple(:,3));
 
 %% construct the Jacobian
 load('D:\Documents\Experimental Data\Parallel Current Source\Evaluation Data\Tank 32 Channel\Jacobian.mat');
@@ -70,38 +70,8 @@ Filt.Band = 1;
 %% Generate baseline data set
 Baseline = get_BV_Acti(Data,Acti,Filt,Freqs,Prt);
 
-%% Get data from ActiChamp and reconstruct
-Acti.Close();
+%% Keep getting & imaging data
+Continuous_imaging
 
-drawnow
-% How much data to collect for each image
-for i = 1:20 %while(1)
- tic
-    %disp(['TCP Bytes: ' num2str(EEG.tcp_obj.BytesAvailable)])
-    Acti.Go(1);
-    Data  = Acti.data_buf';
-    %disp ( ['Load Data ' num2str(toc)]); tic
-
-    Pert = get_BV_Acti(Data,Acti,Filt,Freqs,Prt);
-    dV = Pert - Baseline;
-    Y_m = dV(IN);
-    
-    X=tikhonov_CV_fast(dV,lambda,n_J,U,S,V,k,m,n,l,JJinv_InOut,Y_m,OUT,SD_all);
-    
-%        disp ( ['Recon ' num2str(toc)]); tic
-
-% Update interpolation function with new values, and update plot.
-F_interp.V = X;
-set(h,'CData',F_interp(Xg,Yg))
-set(plot_text,'String',toc)
-
-drawnow
-
-       
-
-    
-end
-
-%to do:
-%better plot of recon
-%Speed up recon - fixed lamba? Look at Noise correction
+%% Gather data, then image
+image_in_steps

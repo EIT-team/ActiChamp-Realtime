@@ -251,6 +251,7 @@ classdef ActiChamp < handle
             
             while ~self.finish
                 % Get Block of data and append to data buffer
+                
                 self.GetDataBlock()
                 
                 %Append EEG_packet to data buffer by appending data to end
