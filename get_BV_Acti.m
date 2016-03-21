@@ -1,4 +1,4 @@
-function BV0 = get_BV (Data,EEG,Filt,Freqs,Prt)
+function [BV0 X1] = get_BV (Data,EEG,Filt,Freqs,Prt)
 
 elec = 1:EEG.props.channelCount;
 N_prt = size(Prt,1);
@@ -12,9 +12,9 @@ for i = 1:size(Freqs)
     
     X1 = filtfilt(b,a,Data);
     X1 = abs(hilbert(X1));
-    
-    BV(i,:)= mean( X1(end/10:9*end/10,:));
-    SD(i,:)= std( X1(end/10:9*end/10,:));
+    X1 = X1(end/10:9*end/10,:);
+    BV(i,:)= mean( X1);
+    SD(i,:)= std( X1);
     
 end
 
