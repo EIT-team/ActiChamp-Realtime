@@ -10,11 +10,11 @@ for i = 1:max(size(Freqs))
     %Filter and demodulate at each frequency
     [b,a] = butter(Filt.Order,(Fc+[-Filt.Band,Filt.Band])./(EEG.Fs/2));
     
-    X1 = filtfilt(b,a,Data);
-    X1 = abs(hilbert(X1));
-    X1 = X1(end/10:9*end/10,:);
-    BV(i,:)= mean( X1);
-    SD(i,:)= std( X1);
+    X1{i} = filtfilt(b,a,Data);
+    X1{i} = abs(hilbert(X1{i}));
+    X1{i} = X1{i}(end/10:9*end/10,:);
+    BV(i,:)= mean( X1{i});
+    SD(i,:)= std( X1{i});
     
 end
 

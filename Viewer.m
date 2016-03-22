@@ -294,7 +294,7 @@ classdef Viewer < handle
                 
                 %Calculate injection frequency (whichever one has highest
                 %FFT value)
-                [~,max_ind] = max(P1);
+                [~,max_ind] = max(P1(2:end)); %Ignore 1st sample (0Hz)
                 Fc = round(f(max_ind));
                 %Display Fc in title
                 set(self.tabNoise.axFreq,'Title', title(['Fc: ' num2str(Fc) 'Hz']));
