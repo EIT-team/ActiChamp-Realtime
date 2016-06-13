@@ -18,10 +18,10 @@ plot_type = 'scatter';
 mesh_simple = mesh_simple(:,centre_inds)';
 
 %Create grid data for plotting surface
-step_size = 0.25;
+step_size = 1;
 [Xg, Yg] = meshgrid(  min(mesh_simple(:,1)):step_size:max(mesh_simple(:,1)),...
-                    min(mesh_simple(:,2)):step_size:max(mesh_simple(:,2))...
-                    );
+    min(mesh_simple(:,2)):step_size:max(mesh_simple(:,2))...
+  );
                 
 Vq = griddata(  mesh_simple(:,1), mesh_simple(:,2), mesh_simple(:,3),...
                 Xg,Yg); 
@@ -32,6 +32,9 @@ Vq = griddata(  mesh_simple(:,1), mesh_simple(:,2), mesh_simple(:,3),...
 % set(h,'LineStyle','none')   %Turn off mesh lines
 % % set(h,'CDataMapping','direct')
 
+plot3(mesh_simple(1:200:end,1),mesh_simple(1:200:end,2),mesh_simple(1:200:end,3),'LineStyle','none',...
+    'Marker','x','MarkerEdgeColor','red')
+hold on
 h=plot3(mesh_simple(:,1),mesh_simple(:,2),mesh_simple(:,3),'LineStyle','none','Marker','o')
 
 
@@ -74,7 +77,7 @@ prt_keep = index_protocol(prt_exp,prtfull);
 
 prt_good = [];
 for i = 1:size(prt_exp,1)
-    if intersect(prt_exp(i,3),Prt(:))
+    if intersect(prt_exp(i,3),prt_exp(i,1:2))
     else
                 prt_good(end+1)= i;
 
@@ -89,7 +92,8 @@ prt_keep = prt_keep(prt_good,:);
 J = J (prt_keep, centre_inds);
 
 % precompute recon stuff
-recon_speed_up
+
+Tik.precompute(J)
 
 %% Setup filter
 Filt.Order = 5;

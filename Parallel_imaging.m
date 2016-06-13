@@ -9,9 +9,9 @@ warning('off','MATLAB:NonIntegerInput')
 
 Mesh = load('D:\Documents\Experimental Data\SA060.mat');
 load('D:\Documents\Experimental Data\SA060-elecs.mat');
-%Convert to 'simple' mesh that can be used in MATLAB scatter plots
 
-tic
+plot_type = 'scatter';
+%Convert to 'simple' mesh that can be used in MATLAB scatter plots
 [mesh_simple, centre_inds] = cylindrical_tank_mesh_simplify(Mesh, 5);
 
 %Use only the mesh elements that are close to 0 on the z axis to reduce
@@ -26,15 +26,17 @@ step_size = 0.25;
                 
 Vq = griddata(  mesh_simple(:,1), mesh_simple(:,2), mesh_simple(:,3),...
                 Xg,Yg); 
-            
-%Create inital plot of the tank
-% Fastest way to do this (so far) - could probably be improved
-h = surf(Xg,Yg,Vq);
-set(h,'LineStyle','none')   %Turn off mesh lines
-% set(h,'CDataMapping','direct')
+%             
+% %Create inital plot of the tank
+% % Fastest way to do this (so far) - could probably be improved
+% h = surf(Xg,Yg,Vq);
+% set(h,'LineStyle','none')   %Turn off mesh lines
+% % set(h,'CDataMapping','direct')
+
+h=plot3(mesh_simple(:,1),mesh_simple(:,2),mesh_simple(:,3),'LineStyle','none','Marker','o')
+
 
 view(2) %Top down view
-toc
 plot_text = text(   0.8,0.9,'Time','Units','normalized',...
                     'FontSize',16,'FontName','Times New Roman')
 
